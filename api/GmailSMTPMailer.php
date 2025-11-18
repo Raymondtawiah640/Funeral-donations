@@ -8,7 +8,7 @@ class GmailSMTPMailer {
     private $smtp_host = 'smtp.gmail.com';
     private $smtp_port = 587;
     private $username = 'raymondtawiah23@gmail.com';
-    private $password = 'dprq bgfq awvq ukyd';
+    private $password = 'dprq bgfqawvq ukyd';
     private $from_name = 'Legacy Donation';
     private $reply_to = 'support@legacy-donation.com';
     
