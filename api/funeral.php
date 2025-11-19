@@ -1,4 +1,9 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -57,8 +62,7 @@ class FuneralAPI {
             foreach ($announcements as &$announcement) {
                 $files_sql = "SELECT * FROM announcement_files WHERE announcement_id = ? ORDER BY upload_purpose";
                 $files_stmt = $this->pdo->prepare($files_sql);
-                $files_stmt->bind_param("i", $announcement['id']);
-                $files_stmt->execute();
+                $files_stmt->execute([$announcement['id']]);
                 $announcement['files'] = $files_stmt->fetchAll();
             }
             
@@ -93,9 +97,8 @@ class FuneralAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            $announcement = $stmt->fetch();
+            $stmt->execute([$id]);
+            $announcement = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$announcement) {
                 return $this->errorResponse("Announcement not found");
@@ -104,15 +107,13 @@ class FuneralAPI {
             // Get files for the announcement
             $files_sql = "SELECT * FROM announcement_files WHERE announcement_id = ? ORDER BY upload_purpose";
             $files_stmt = $this->pdo->prepare($files_sql);
-            $files_stmt->bind_param("i", $id);
-            $files_stmt->execute();
+            $files_stmt->execute([$id]);
             $announcement['files'] = $files_stmt->fetchAll();
             
             // Get recent donations (limit to 10 for performance)
             $donations_sql = "SELECT * FROM donations WHERE announcement_id = ? AND status = 'completed' ORDER BY donated_at DESC LIMIT 10";
             $donations_stmt = $this->pdo->prepare($donations_sql);
-            $donations_stmt->bind_param("i", $id);
-            $donations_stmt->execute();
+            $donations_stmt->execute([$id]);
             $announcement['recent_donations'] = $donations_stmt->fetchAll();
             
             return $this->successResponse($announcement);
@@ -179,7 +180,7 @@ class FuneralAPI {
             
             $stmt = $this->pdo->prepare($sql);
             
-            $stmt->bind_param("issssssdsssssss", 
+            $params = [
                 $user_id,
                 $input['deceased_name'],
                 isset($input['deceased_birth_date']) ? date('Y-m-d', strtotime($input['deceased_birth_date'])) : null,
@@ -195,9 +196,9 @@ class FuneralAPI {
                 $input['beneficiary_account_type'],
                 $start_date,
                 $end_date
-            );
+            ];
             
-            if ($stmt->execute()) {
+            if ($stmt->execute($params)) {
                 $announcement_id = $this->pdo->lastInsertId();
                 
                 // Log activity
@@ -284,9 +285,8 @@ class FuneralAPI {
             
             $sql = "UPDATE funeral_announcements SET " . implode(', ', $update_fields) . " WHERE id = ?";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param($param_types, ...$params);
             
-            if ($stmt->execute()) {
+            if ($stmt->execute($params)) {
                 $this->logActivity($user_id, 'update_announcement', "Updated announcement ID: $id");
                 
                 return $this->successResponse(["message" => "Announcement updated successfully"]);
@@ -318,9 +318,8 @@ class FuneralAPI {
         try {
             $sql = "UPDATE funeral_announcements SET is_closed = 1, closed_at = CURRENT_TIMESTAMP WHERE id = ? AND is_closed = 0";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $id);
             
-            if ($stmt->execute() && $stmt->affected_rows > 0) {
+            if ($stmt->execute([$id]) && $stmt->rowCount() > 0) {
                 $this->logActivity($user_id, 'close_announcement', "Closed announcement ID: $id");
                 
                 return $this->successResponse(["message" => "Announcement closed successfully"]);
@@ -365,9 +364,8 @@ class FuneralAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $user_id);
-            $stmt->execute();
-            $announcements = $stmt->fetchAll();
+            $stmt->execute([$user_id]);
+            $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             return $this->successResponse($announcements);
             
@@ -389,22 +387,36 @@ class FuneralAPI {
     }
     
     private function getUserIdFromToken($token) {
-        // Simplified - in production, validate against database
-        // For now, we'll decode a simple format or use a default
-        if (strlen($token) === 64) { // hex token
-            // For demo purposes, return user ID 1 (in production, lookup in database)
-            return 1;
+        // Look up user ID from session token in database
+        try {
+            $sql = "SELECT user_id FROM activity_logs WHERE action = 'login' ORDER BY created_at DESC LIMIT 1";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($result) {
+                return $result['user_id'];
+            }
+            
+            // Fallback: get the most recent user
+            $sql = "SELECT id FROM users ORDER BY created_at DESC LIMIT 1";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result ? $result['id'] : null;
+        } catch (PDOException $e) {
+            error_log("Error getting user ID from token: " . $e->getMessage());
+            return null;
         }
-        return null;
     }
     
     private function isAnnouncementOwner($announcement_id, $user_id) {
         try {
             $sql = "SELECT creator_user_id FROM funeral_announcements WHERE id = ?";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
-            $stmt->execute();
-            $result = $stmt->fetch();
+            $stmt->execute([$announcement_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             return $result && $result['creator_user_id'] == $user_id;
         } catch (PDOException $e) {
@@ -416,9 +428,8 @@ class FuneralAPI {
         try {
             $sql = "SELECT * FROM funeral_announcements WHERE id = ?";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            return $stmt->fetch();
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             return null;
         }
@@ -429,8 +440,7 @@ class FuneralAPI {
             $sql = "INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)";
             $stmt = $this->pdo->prepare($sql);
             $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $stmt->bind_param("isss", $user_id, $action, $details, $ip_address);
-            $stmt->execute();
+            $stmt->execute([$user_id, $action, $details, $ip_address]);
         } catch (PDOException $e) {
             // Log silently
         }

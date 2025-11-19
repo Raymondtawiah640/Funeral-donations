@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ApiService } from '../../services/api.service';
 
 @Component({
   selector: 'app-home',
@@ -136,9 +137,14 @@ import { RouterModule } from '@angular/router';
             <span class="block text-blue-600">Create your first funeral announcement.</span>
           </h2>
           <div class="mt-8 flex lg:mt-0 lg:flex-shrink-0">
-            <div class="inline-flex rounded-md shadow">
+            <div *ngIf="!isLoggedIn" class="inline-flex rounded-md shadow">
               <a routerLink="/signup" class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 Sign Up Free
+              </a>
+            </div>
+            <div *ngIf="isLoggedIn" class="inline-flex rounded-md shadow">
+              <a routerLink="/create-announcement" class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                Create Announcement
               </a>
             </div>
             <div class="ml-3 inline-flex rounded-md shadow">
@@ -152,6 +158,13 @@ import { RouterModule } from '@angular/router';
     </div>
   `
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   title = 'Legacy Donation - Home';
+  isLoggedIn = false;
+
+  constructor(private apiService: ApiService) {}
+
+  ngOnInit(): void {
+    this.isLoggedIn = this.apiService.isLoggedIn();
+  }
 }

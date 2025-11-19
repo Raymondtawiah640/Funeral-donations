@@ -222,7 +222,7 @@ export class ApiService {
     formData.append('file', file);
 
     const headers = this.getAuthHeaders();
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/donations.php?action=upload`, formData, { headers }).pipe(
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/upload.php`, formData, { headers }).pipe(
       catchError(this.handleError)
     );
   }

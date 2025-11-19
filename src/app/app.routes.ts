@@ -10,7 +10,7 @@ export const routes: Routes = [
     loadComponent: () => import('./components/about/about.component').then(m => m.AboutComponent)
   },
   {
-    path: 'donate',
+    path: 'donate/:announcementId',
     loadComponent: () => import('./components/donate/donate.component').then(m => m.DonateComponent)
   },
   {
@@ -30,7 +30,15 @@ export const routes: Routes = [
     loadComponent: () => import('./components/announcements/announcements.component').then(m => m.AnnouncementsComponent)
   },
   {
+    path: 'announcements/:id',
+    loadComponent: () => import('./components/announcements/announcement-detail.component').then(m => m.AnnouncementDetailComponent)
+  },
+  {
     path: 'create-announcement',
     loadComponent: () => import('./components/announcements/create-announcement.component').then(m => m.CreateAnnouncementComponent)
+  },
+  {
+    path: 'my-announcements',
+    loadComponent: () => import('./components/announcements/my-announcements.component').then(m => m.MyAnnouncementsComponent)
   }
 ];

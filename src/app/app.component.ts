@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterModule } from '@angular/router';
+import { ApiService, User } from './services/api.service';
 
 @Component({
   selector: 'app-root',
@@ -13,16 +14,94 @@ import { RouterOutlet, RouterModule } from '@angular/router';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center py-6">
             <div class="flex items-center">
-              <h1 class="text-2xl font-bold text-primary-600 cursor-pointer" routerLink="/">Legacy Donation</h1>
+              <h1 class="text-2xl font-bold text-blue-600 cursor-pointer" routerLink="/">Legacy Donation</h1>
             </div>
+            
+            <!-- Desktop Navigation -->
             <nav class="hidden md:block">
               <div class="ml-10 flex items-baseline space-x-4">
-                <a routerLink="/" routerLinkActive="text-primary-600" class="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
-                <a routerLink="/about" routerLinkActive="text-primary-600" class="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">About</a>
-                <a routerLink="/donate" routerLinkActive="text-primary-600" class="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">Donate</a>
-                <a routerLink="/contact" routerLinkActive="text-primary-600" class="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">Contact</a>
+                <a routerLink="/" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                <a routerLink="/announcements" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Announcements</a>
+                <a routerLink="/about" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">About</a>
+                <a routerLink="/contact" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Contact</a>
+                
+                <!-- Authenticated User Menu -->
+                <div *ngIf="currentUser" class="relative ml-6">
+                  <button (click)="toggleUserMenu()" class="flex items-center text-sm text-gray-600 hover:text-blue-600 focus:outline-none">
+                    <span class="mr-2">{{ currentUser.full_name }}</span>
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                  
+                  <!-- Dropdown Menu -->
+                  <div *ngIf="showUserMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <a routerLink="/create-announcement" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Create Announcement
+                    </a>
+                    <a routerLink="/my-announcements" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      My Announcements
+                    </a>
+                    <div class="border-t border-gray-100"></div>
+                    <button (click)="logout()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Unauthenticated Links -->
+                <div *ngIf="!currentUser" class="flex items-center space-x-4 ml-6">
+                  <a routerLink="/login" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                  <a routerLink="/signup" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium">Sign Up</a>
+                </div>
               </div>
             </nav>
+
+            <!-- Mobile menu button -->
+            <div class="md:hidden">
+              <button (click)="toggleMobileMenu()" class="text-gray-600 hover:text-blue-600 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path *ngIf="!showMobileMenu" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                  <path *ngIf="showMobileMenu" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Mobile Navigation Menu -->
+        <div *ngIf="showMobileMenu" class="md:hidden border-t border-gray-200">
+          <div class="px-4 pt-2 pb-3 space-y-1">
+            <a routerLink="/" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Home</a>
+            <a routerLink="/announcements" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Announcements</a>
+            <a routerLink="/about" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">About</a>
+            <a routerLink="/contact" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Contact</a>
+            
+            <!-- Mobile User Menu -->
+            <div *ngIf="currentUser" class="border-t border-gray-200 pt-4">
+              <div class="flex items-center px-3 py-2">
+                <div class="flex-shrink-0">
+                  <div class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span class="text-sm font-medium text-white">{{ getUserInitials() }}</span>
+                  </div>
+                </div>
+                <div class="ml-3">
+                  <div class="text-base font-medium text-gray-800">{{ currentUser.full_name }}</div>
+                  <div class="text-sm font-medium text-gray-500">{{ currentUser.email }}</div>
+                </div>
+              </div>
+              <div class="mt-3 space-y-1">
+                <a routerLink="/create-announcement" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Create Announcement</a>
+                <a routerLink="/my-announcements" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">My Announcements</a>
+                <button (click)="logout()" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Sign Out</button>
+              </div>
+            </div>
+            
+            <!-- Mobile Unauthenticated Links -->
+            <div *ngIf="!currentUser" class="border-t border-gray-200 pt-4 space-y-1">
+              <a routerLink="/login" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Login</a>
+              <a routerLink="/signup" class="block px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700">Sign Up</a>
+            </div>
           </div>
         </div>
       </header>
@@ -57,6 +136,50 @@ import { RouterOutlet, RouterModule } from '@angular/router';
   `,
   styles: []
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'Legacy Donation';
+  currentUser: User | null = null;
+  showUserMenu = false;
+  showMobileMenu = false;
+
+  constructor(private apiService: ApiService) {}
+
+  ngOnInit(): void {
+    // Subscribe to current user changes
+    this.apiService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
+  }
+
+  toggleUserMenu(): void {
+    this.showUserMenu = !this.showUserMenu;
+  }
+
+  toggleMobileMenu(): void {
+    this.showMobileMenu = !this.showMobileMenu;
+  }
+
+  logout(): void {
+    this.apiService.logout();
+    this.showUserMenu = false;
+    this.showMobileMenu = false;
+  }
+
+  getUserInitials(): string {
+    if (!this.currentUser?.full_name) return 'U';
+    
+    return this.currentUser.full_name
+      .split(' ')
+      .map(name => name.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+  }
+
+  // Close menus when clicking outside
+  onClickOutside(event: Event): void {
+    const target = event.target as Element;
+    if (!target.closest('.relative') && this.showUserMenu) {
+      this.showUserMenu = false;
+    }
+  }
 }

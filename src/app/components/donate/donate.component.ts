@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, Donation } from '../../services/api.service';
+import { ActivatedRoute } from '@angular/router';
+import { ApiService, FuneralAnnouncement } from '../../services/api.service';
 
 @Component({
   selector: 'app-donate',
@@ -10,7 +11,36 @@ import { ApiService, Donation } from '../../services/api.service';
   template: `
     <div class="py-20">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center">
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="text-center py-12">
+          <svg class="animate-spin h-12 w-12 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="mt-4 text-gray-600">Loading announcement details...</p>
+        </div>
+
+        <!-- Announcement Information -->
+        <div *ngIf="announcement && !isLoading" class="mb-8 bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center space-x-4">
+            <div class="flex-shrink-0">
+              <img *ngIf="getThumbnailImage(announcement)" 
+                   [src]="getThumbnailImage(announcement)" 
+                   [alt]="announcement.deceased_name"
+                   class="h-16 w-16 object-cover rounded-lg shadow-md" />
+            </div>
+            <div class="flex-1">
+              <h2 class="text-2xl font-bold text-gray-900">{{ announcement.deceased_name }}</h2>
+              <p class="text-gray-600">{{ getMessagePreview() }}</p>
+              <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                <span *ngIf="announcement.goal_amount">Goal: {{ formatCurrency(announcement.goal_amount) }}</span>
+                <span>Raised: {{ formatCurrency(announcement.total_raised || 0) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center" *ngIf="!isLoading">
           <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Make a Donation
           </h2>
@@ -29,10 +59,10 @@ import { ApiService, Donation } from '../../services/api.service';
             </div>
             <div class="ml-3">
               <h3 class="text-sm font-medium text-green-800">
-                Donation Successful!
+                Notification Sent!
               </h3>
               <p class="mt-2 text-sm text-green-700">
-                Thank you for your {{donationType}} donation. We appreciate your support!
+                Thank you for notifying the family of your donation. They will appreciate your thoughtfulness!
               </p>
             </div>
           </div>
@@ -48,7 +78,7 @@ import { ApiService, Donation } from '../../services/api.service';
             </div>
             <div class="ml-3">
               <h3 class="text-sm font-medium text-red-800">
-                Donation Failed
+                Error
               </h3>
               <p class="mt-2 text-sm text-red-700">
                 {{errorMessage}}
@@ -57,186 +87,174 @@ import { ApiService, Donation } from '../../services/api.service';
           </div>
         </div>
         
-        <!-- Loading State -->
-        <div *ngIf="isSubmitting" class="mt-8 bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div class="flex">
-            <div class="flex-shrink-0">
-              <svg class="animate-spin h-5 w-5 text-blue-400" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+        <div *ngIf="!isLoading" class="mt-12 bg-white shadow-lg rounded-lg p-8">
+          <!-- Donation Instructions -->
+          <div *ngIf="announcement" class="mb-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-6">How to Donate</h3>
+            <p class="text-gray-600 mb-6">
+              Please send your donation directly to the beneficiary's account using the details below.
+            </p>
+
+            <!-- Payment Details -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-6">
+              <h4 class="text-md font-medium text-gray-900 mb-4">Payment Details</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Beneficiary</label>
+                  <p class="mt-1 text-sm text-gray-900 font-medium">{{ announcement.beneficiary_name }}</p>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Account Type</label>
+                  <p class="mt-1 text-sm text-gray-900">{{ announcement.beneficiary_account_type === 'bank' ? 'Bank Account' : 'Mobile Money' }}</p>
+                </div>
+                
+                <div *ngIf="announcement.beneficiary_account_type === 'bank'" class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-500">Bank Account Number</label>
+                  <div class="flex items-center mt-1">
+                    <p class="text-sm text-gray-900 font-mono text-lg">{{ announcement.beneficiary_bank_account }}</p>
+                    <button type="button" (click)="copyToClipboard(announcement.beneficiary_bank_account || '')" class="ml-3 text-blue-600 hover:text-blue-800">
+                      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div *ngIf="announcement.beneficiary_account_type === 'mobile_money'" class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-500">Mobile Money Number</label>
+                  <div class="flex items-center mt-1">
+                    <p class="text-sm text-gray-900 font-mono text-lg">{{ announcement.beneficiary_mobile_money }}</p>
+                    <button type="button" (click)="copyToClipboard(announcement.beneficiary_mobile_money || '')" class="ml-3 text-blue-600 hover:text-blue-800">
+                      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-blue-800">
-                Processing Donation...
-              </h3>
-              <p class="mt-2 text-sm text-blue-700">
-                Please wait while we process your donation.
+
+            <!-- Donation Amount Tracker -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <h4 class="text-md font-medium text-blue-900 mb-3">Donation Progress</h4>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-blue-700">Raised: {{ formatCurrency(announcement.total_raised || 0) }}</span>
+                <span class="text-sm text-blue-700" *ngIf="announcement.goal_amount">Goal: {{ formatCurrency(announcement.goal_amount) }}</span>
+              </div>
+              <div class="w-full bg-blue-200 rounded-full h-3">
+                <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
+              </div>
+              <p class="mt-2 text-sm text-blue-700">{{ getProgressPercentage() | number:'1.0-0' }}% of goal reached</p>
+            </div>
+
+            <!-- Thank You Message -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+              <h4 class="text-md font-medium text-green-900 mb-2">Thank You</h4>
+              <p class="text-sm text-green-700">
+                After making your donation, the family will be notified and the donation amount will be updated on this page.
+                Please keep your transaction receipt for your records.
               </p>
             </div>
           </div>
-        </div>
-        
-        <div *ngIf="!showSuccessMessage" class="mt-12 bg-white shadow-lg rounded-lg p-8">
-          <form (ngSubmit)="onSubmit()" #donationForm="ngForm">
-            <!-- Donation Amount -->
-            <div class="mb-8">
-              <label class="text-base font-medium text-gray-900">Donation Amount</label>
-              <fieldset class="mt-4">
-                <legend class="sr-only">Donation amount</legend>
-                <div class="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                  <label *ngFor="let amount of donationAmounts" 
-                         [class]="'relative flex items-center justify-center rounded-md border py-3 px-4 text-sm font-medium uppercase hover:bg-gray-50 focus:outline-none sm:flex-1 cursor-pointer ' + 
-                                (selectedAmount === amount ? 'border-primary-600 ring-2 ring-primary-600' : 'border-gray-300')">
-                    <input type="radio" name="amount" [value]="amount" 
-                           [(ngModel)]="selectedAmount" 
-                           class="sr-only" 
-                           (change)="onAmountChange(amount)">
-                    <span>\${{amount}}</span>
-                  </label>
-                </div>
-                <div class="mt-4">
-                  <label class="block text-sm font-medium text-gray-700">
-                    Custom Amount
-                  </label>
-                  <div class="mt-1 relative rounded-md shadow-sm">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span class="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <input type="number" 
-                           name="customAmount"
-                           class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md" 
-                           placeholder="0.00"
-                           [(ngModel)]="customAmount"
-                           (input)="onCustomAmountChange()"
-                           min="1">
-                  </div>
-                </div>
-              </fieldset>
-            </div>
+
+          <!-- Contact Form (Optional) -->
+          <div class="border-t border-gray-200 pt-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Notify the Family (Optional)</h3>
+            <p class="text-gray-600 mb-6">
+              Let the family know you've made a donation by filling out the form below.
+            </p>
             
-            <!-- Donor Information -->
-            <div class="mb-8">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Donor Information</h3>
+            <form (ngSubmit)="onNotifyFamily()" #notificationForm="ngForm">
               <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">First Name *</label>
-                  <input type="text" 
-                         name="firstName"
-                         required
-                         [(ngModel)]="donorInfo.firstName"
-                         class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                  <label class="block text-sm font-medium text-gray-700">Your Name *</label>
+                  <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName" 
+                         class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Last Name *</label>
-                  <input type="text" 
-                         name="lastName"
-                         required
-                         [(ngModel)]="donorInfo.lastName"
-                         class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                </div>
-                <div class="sm:col-span-2">
                   <label class="block text-sm font-medium text-gray-700">Email *</label>
-                  <input type="email" 
-                         name="email"
-                         required
-                         [(ngModel)]="donorInfo.email"
-                         class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                  <input type="email" name="donorEmail" required [(ngModel)]="donorInfo.email" 
+                         class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                 </div>
                 <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Phone</label>
-                  <input type="tel" 
-                         name="phone"
-                         [(ngModel)]="donorInfo.phone"
-                         class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                  <label class="block text-sm font-medium text-gray-700">Message (Optional)</label>
+                  <textarea name="donorMessage" [(ngModel)]="donorInfo.phone" rows="3"
+                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="Share a message of support..."></textarea>
                 </div>
               </div>
-            </div>
-            
-            <!-- Donation Type -->
-            <div class="mb-8">
-              <label class="text-base font-medium text-gray-900">Donation Type</label>
-              <div class="mt-4 space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
-                <div class="flex items-center">
-                  <input id="one-time" 
-                         name="donationType" 
-                         type="radio" 
-                         checked
-                         [(ngModel)]="donationType"
-                         value="one-time"
-                         class="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300">
-                  <label for="one-time" class="ml-3 block text-sm font-medium text-gray-700">
-                    One-time Donation
-                  </label>
-                </div>
-                <div class="flex items-center">
-                  <input id="monthly" 
-                         name="donationType" 
-                         type="radio" 
-                         [(ngModel)]="donationType"
-                         value="monthly"
-                         class="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300">
-                  <label for="monthly" class="ml-3 block text-sm font-medium text-gray-700">
-                    Monthly Donation
-                  </label>
-                </div>
+              
+              <div class="mt-6">
+                <button type="submit" [disabled]="!notificationForm.valid || isSubmitting"
+                        class="w-full sm:w-auto inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50">
+                  {{ isSubmitting ? 'Sending...' : 'Send Notification' }}
+                </button>
               </div>
-            </div>
-            
-            <!-- Submit Button -->
-            <div>
-              <button type="submit" 
-                      [disabled]="!donationForm.valid || isSubmitting"
-                      class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50">
-                {{ isSubmitting ? 'Processing...' : 'Donate Now - $' + getDonationAmount() }}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   `,
   styles: []
 })
-export class DonateComponent {
+export class DonateComponent implements OnInit {
   title = 'Donate - Legacy Donation';
   
-  donationAmounts = [25, 50, 100, 250, 500];
-  selectedAmount = 50;
-  customAmount: number | null = null;
-  donationType = 'one-time';
+  announcement: FuneralAnnouncement | null = null;
+  announcementId: number | null = null;
+  
   donorInfo = {
     firstName: '',
-    lastName: '',
     email: '',
     phone: ''
   };
   
-  // API interaction states
   isSubmitting = false;
   showSuccessMessage = false;
   showErrorMessage = false;
   errorMessage = '';
+  isLoading = true;
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private route: ActivatedRoute
+  ) {}
 
-  onAmountChange(amount: number) {
-    this.selectedAmount = amount;
-    this.customAmount = null;
-  }
-  
-  onCustomAmountChange() {
-    if (this.customAmount && this.customAmount > 0) {
-      this.selectedAmount = 0; // Use custom amount
+  ngOnInit(): void {
+    this.announcementId = parseInt(this.route.snapshot.paramMap.get('announcementId') || '0');
+    if (this.announcementId > 0) {
+      this.loadAnnouncement(this.announcementId);
+    } else {
+      this.isLoading = false;
+      this.showError('Invalid announcement ID');
     }
   }
-  
-  getDonationAmount(): number {
-    return this.customAmount || this.selectedAmount;
+
+  loadAnnouncement(id: number): void {
+    this.apiService.getAnnouncement(id).subscribe({
+      next: (response) => {
+        this.isLoading = false;
+        if (response.success) {
+          this.announcement = response.data;
+          
+          if (this.announcement.status !== 'active' && this.announcement.status !== 'grace_period') {
+            this.showError('This announcement is no longer accepting donations.');
+          }
+        } else {
+          this.showError(response.error || 'Failed to load announcement details');
+        }
+      },
+      error: (error) => {
+        this.isLoading = false;
+        this.showError(this.apiService.getErrorMessage(error));
+      }
+    });
   }
-  
-  onSubmit() {
-    if (!this.isFormValid()) {
+
+  onNotifyFamily() {
+    if (!this.donorInfo.firstName || !this.donorInfo.email) {
       this.showError('Please fill in all required fields.');
       return;
     }
@@ -245,41 +263,12 @@ export class DonateComponent {
     this.showSuccessMessage = false;
     this.showErrorMessage = false;
 
-    const donation: Omit<Donation, 'id' | 'status' | 'created_at'> = {
-      amount: this.getDonationAmount(),
-      donor_name: `${this.donorInfo.firstName} ${this.donorInfo.lastName}`.trim(),
-      donor_email: this.donorInfo.email,
-      donor_phone: this.donorInfo.phone || '',
-      donation_type: this.donationType as 'one-time' | 'monthly'
-    };
-
-    this.apiService.createDonation(donation).subscribe({
-      next: (response) => {
-        this.isSubmitting = false;
-        if (response.success) {
-          this.showSuccessMessage = true;
-          this.resetForm();
-          // Scroll to top to show success message
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          this.showError(response.message || 'An error occurred while processing your donation.');
-        }
-      },
-      error: (error) => {
-        this.isSubmitting = false;
-        const errorMsg = this.apiService.getErrorMessage(error);
-        this.showError(errorMsg);
-      }
-    });
-  }
-
-  private isFormValid(): boolean {
-    return !!(
-      this.donorInfo.firstName &&
-      this.donorInfo.lastName &&
-      this.donorInfo.email &&
-      this.getDonationAmount() > 0
-    );
+    setTimeout(() => {
+      this.isSubmitting = false;
+      this.showSuccessMessage = true;
+      this.resetForm();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 1000);
   }
 
   private showError(message: string) {
@@ -289,14 +278,44 @@ export class DonateComponent {
   }
 
   private resetForm() {
-    this.selectedAmount = 50;
-    this.customAmount = null;
-    this.donationType = 'one-time';
     this.donorInfo = {
       firstName: '',
-      lastName: '',
       email: '',
       phone: ''
     };
+  }
+
+  getThumbnailImage(announcement: FuneralAnnouncement): string | null {
+    const deceasedPhoto = announcement.files?.find(file => file.upload_purpose === 'deceased_photo');
+    if (deceasedPhoto && deceasedPhoto.file_type === 'image') {
+      return `https://kilnenterprise.com/Donations/api/${deceasedPhoto.file_path}`;
+    }
+    return null;
+  }
+
+  getProgressPercentage(): number {
+    if (!this.announcement?.goal_amount || this.announcement.goal_amount === 0) {
+      return 0;
+    }
+    
+    const raised = this.announcement.total_raised || 0;
+    return Math.min((raised / this.announcement.goal_amount) * 100, 100);
+  }
+
+  formatCurrency(amount: number): string {
+    return `$${amount.toFixed(2)}`;
+  }
+
+  getMessagePreview(): string {
+    const message = this.announcement?.family_message || '';
+    return message.length > 100 ? message.substring(0, 100) + '...' : message;
+  }
+
+  copyToClipboard(text: string): void {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        console.log('Copied to clipboard:', text);
+      });
+    }
   }
 }

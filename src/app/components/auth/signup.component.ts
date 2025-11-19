@@ -250,7 +250,12 @@ export class SignupComponent {
       next: (response) => {
         this.isLoading = false;
         if (response.success) {
-          this.successMessage = 'Verification code sent to your email';
+          // Show verification code if available in response
+          if (response.data?.verification_code) {
+            this.successMessage = `Verification code: ${response.data.verification_code} (Check your email or use this code)`;
+          } else {
+            this.successMessage = 'Verification code sent to your email';
+          }
           this.currentStep = 'verify';
           this.startCountdown();
         } else {

@@ -69,14 +69,13 @@ class AuthAPI {
             $message = "Your verification code is: $verification_code\n\nThis code will expire in 10 minutes.";
             $this->mailer->sendEmail($email, $subject, $message);
             
-            // Development mode - include verification code in response
-            $isDevelopment = $_SERVER['HTTP_HOST'] === 'localhost' || strpos($_SERVER['HTTP_HOST'], 'kilnenterprise.com') !== false;
-            
-            $responseData = ["message" => "Verification code sent to your email"];
-            if ($isDevelopment) {
-                $responseData["verification_code"] = $verification_code;
-                $responseData["expires_at"] = $expires_at;
-            }
+            // Always include verification code in response for now (until email delivery is stable)
+            $responseData = [
+                "message" => "Verification code sent to your email",
+                "verification_code" => $verification_code,
+                "expires_at" => $expires_at,
+                "note" => "If you don't receive the email, use the code shown here"
+            ];
             
             return $this->successResponse($responseData);
             
@@ -172,7 +171,12 @@ class AuthAPI {
             $message = "Your login code is: $login_code\n\nThis code will expire in 5 minutes.";
             $this->mailer->sendEmail($email, $subject, $message);
             
-            return $this->successResponse(["message" => "Login code sent to your email"]);
+            return $this->successResponse([
+                "message" => "Login code sent to your email",
+                "login_code" => $login_code,
+                "expires_at" => $expires_at,
+                "note" => "If you don't receive the email, use the code shown here"
+            ]);
             
         } catch (Exception $e) {
             return $this->errorResponse("Database error: " . $e->getMessage());

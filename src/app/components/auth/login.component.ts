@@ -189,7 +189,12 @@ export class LoginComponent {
       next: (response) => {
         this.isLoading = false;
         if (response.success) {
-          this.successMessage = 'Login code sent to your email';
+          // Show login code if available in response
+          if (response.data?.login_code) {
+            this.successMessage = `Login code: ${response.data.login_code} (Check your email or use this code)`;
+          } else {
+            this.successMessage = 'Login code sent to your email';
+          }
           this.currentStep = 'code';
           this.startCountdown();
         } else {

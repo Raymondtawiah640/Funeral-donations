@@ -8,7 +8,7 @@ class GmailSMTPMailer {
     private $smtp_host = 'smtp.gmail.com';
     private $smtp_port = 587;
     private $username = 'raymondtawiah23@gmail.com';
-    private $password = 'dprq bgfqawvq ukyd';
+    private $password = 'dprqbgfqawvqukyd'; 
     private $from_name = 'Legacy Donation';
     private $reply_to = 'support@legacy-donation.com';
     
@@ -56,18 +56,28 @@ class GmailSMTPMailer {
         
         // Send EHLO
         fwrite($socket, "EHLO localhost\r\n");
-        $response = fgets($socket);
+        $this->readMultilineResponse($socket);
         
         // Send STARTTLS
         fwrite($socket, "STARTTLS\r\n");
         $response = fgets($socket);
         
+        if (substr($response, 0, 3) !== '220') {
+            error_log("STARTTLS failed: $response");
+            fclose($socket);
+            return $this->fallbackMail($to, "[Legacy Donation] $subject", $message);
+        }
+        
         // Enable encryption
-        stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+        if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            error_log("TLS encryption failed");
+            fclose($socket);
+            return $this->fallbackMail($to, "[Legacy Donation] $subject", $message);
+        }
         
         // Send EHLO again (required after STARTTLS)
         fwrite($socket, "EHLO localhost\r\n");
-        $response = fgets($socket);
+        $this->readMultilineResponse($socket);
         
         // Authenticate
         fwrite($socket, "AUTH LOGIN\r\n");
@@ -94,7 +104,7 @@ class GmailSMTPMailer {
         $response = fgets($socket);
         
         if (substr($response, 0, 3) !== '235') {
-            error_log("Gmail authentication failed: $response");
+            error_log("Gmail authentication failed: $response - Check your Gmail App Password");
             fclose($socket);
             return $this->fallbackMail($to, "[Legacy Donation] $subject", $message);
         }
@@ -149,8 +159,19 @@ class GmailSMTPMailer {
         fwrite($socket, "QUIT\r\n");
         fclose($socket);
         
-        error_log("Email sent successfully via Gmail SMTP to: $to");
         return true;
+    }
+    
+    private function readMultilineResponse($socket) {
+        $response = '';
+        while ($line = fgets($socket)) {
+            $response .= $line;
+            // Check if this is the last line (doesn't have a dash after the code)
+            if (preg_match('/^\d{3} /', $line)) {
+                break;
+            }
+        }
+        return $response;
     }
     
     private function fallbackMail($to, $subject, $message) {
@@ -172,9 +193,7 @@ class GmailSMTPMailer {
         
         $mailSent = mail($to, $subject, $fullMessage, implode("\r\n", $headers));
         
-        if ($mailSent) {
-            error_log("Email sent via fallback PHP mail() to: $to");
-        } else {
+        if (!$mailSent) {
             error_log("All email sending methods failed for: $to");
         }
         
