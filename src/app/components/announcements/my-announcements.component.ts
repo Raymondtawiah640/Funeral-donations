@@ -215,8 +215,9 @@ export class MyAnnouncementsComponent implements OnInit {
     return null;
   }
 
-  formatCurrency(amount: number): string {
-    return `$${amount.toFixed(2)}`;
+  formatCurrency(amount: number | string | null | undefined): string {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+    return `GH₵${numAmount.toFixed(2)}`;
   }
 
   getMessagePreview(announcement: FuneralAnnouncement): string {

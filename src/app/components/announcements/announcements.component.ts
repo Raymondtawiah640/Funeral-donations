@@ -70,12 +70,12 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                     <div class="flex items-center space-x-4">
                       <div *ngIf="announcement.goal_amount">
                         <span class="text-sm text-gray-500">Goal:</span>
-                        <span class="ml-1 font-medium text-gray-900">\${{ announcement.goal_amount | number:'1.2-2' }}</span>
+                        <span class="ml-1 font-medium text-gray-900">GH₵{{ announcement.goal_amount | number:'1.2-2' }}</span>
                       </div>
                       
                       <div>
                         <span class="text-sm text-gray-500">Raised:</span>
-                        <span class="ml-1 font-medium text-green-600">\${{ announcement.total_raised || 0 | number:'1.2-2' }}</span>
+                        <span class="ml-1 font-medium text-green-600">GH₵{{ announcement.total_raised || 0 | number:'1.2-2' }}</span>
                       </div>
                       
                       <div *ngIf="announcement.goal_amount && announcement.goal_amount > 0">

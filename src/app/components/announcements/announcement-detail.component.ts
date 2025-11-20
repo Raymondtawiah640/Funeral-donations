@@ -106,7 +106,6 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
                     />
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg"></div>
                   </div>
-                  <p class="mt-2 text-xs text-gray-500 truncate">{{ file.original_name }}</p>
                 </div>
               </div>
             </div>
@@ -347,8 +346,8 @@ export class AnnouncementDetailComponent implements OnInit {
   }
 
   getFileUrl(file: AnnouncementFile): string {
-    // Return the full URL to the uploaded file
-    return `https://kilnenterprise.com/Donations/api/${file.file_path}`;
+    // Return the full URL to the uploaded file using the files.php endpoint
+    return `https://kilnenterprise.com/Donations/api/files.php?file_id=${file.id}`;
   }
 
   getProgressPercentage(): number {

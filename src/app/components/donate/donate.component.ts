@@ -168,6 +168,24 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
             <form (ngSubmit)="onNotifyFamily()" #notificationForm="ngForm">
               <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Your Name *</label>
+                  <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName" 
+                         class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm"
+                         placeholder="Enter your full name">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                  <input type="email" name="donorEmail" required [(ngModel)]="donorInfo.email" 
+                         class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm"
+                         placeholder="Enter your email address">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Message (Optional)</label>
+                  <textarea name="donorMessage" [(ngModel)]="donorInfo.phone" rows="4"
+                            class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm resize-none"
+                            placeholder="Share a message of support..."></textarea>
+                </div>
+                <div>
                   <label class="block text-sm font-medium text-gray-700">Your Name *</label>
                   <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName" 
                          class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
@@ -302,8 +320,9 @@ export class DonateComponent implements OnInit {
     return Math.min((raised / this.announcement.goal_amount) * 100, 100);
   }
 
-  formatCurrency(amount: number): string {
-    return `$${amount.toFixed(2)}`;
+  formatCurrency(amount: number | string | null | undefined): string {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+    return `GH₵${numAmount.toFixed(2)}`;
   }
 
   getMessagePreview(): string {

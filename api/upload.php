@@ -12,7 +12,7 @@ require_once 'db_connect.php';
 
 class FileUploadAPI {
     private $pdo;
-    private $upload_dir = 'uploads/';
+    private $upload_dir = '../uploads/';
     private $max_file_size = 10485760; // 10MB in bytes
     
     public function __construct() {
@@ -27,14 +27,23 @@ class FileUploadAPI {
     
     public function uploadFile() {
         try {
+            // Debug: Log upload information
+            error_log("Upload request received");
+            error_log("POST data: " . print_r($_POST, true));
+            error_log("FILES data: " . print_r($_FILES, true));
+            
             // Check if file was uploaded
             if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-                return $this->errorResponse("No file uploaded or upload error occurred");
+                $error_message = "No file uploaded. Upload error: " . ($_FILES['file']['error'] ?? 'unknown');
+                error_log($error_message);
+                return $this->errorResponse($error_message);
             }
             
             $file = $_FILES['file'];
             $announcement_id = $_POST['announcement_id'] ?? null;
             $upload_purpose = $_POST['upload_purpose'] ?? 'other';
+            
+            error_log("Processing upload - Announcement ID: $announcement_id, Purpose: $upload_purpose, File: {$file['name']}");
             
             if (!$announcement_id) {
                 return $this->errorResponse("Announcement ID is required");
@@ -64,10 +73,15 @@ class FileUploadAPI {
             $unique_filename = uniqid() . '_' . time() . '.' . $file_extension;
             $file_path = $this->upload_dir . $unique_filename;
             
+            error_log("Moving file to: $file_path");
+            
             // Move uploaded file
             if (!move_uploaded_file($file['tmp_name'], $file_path)) {
+                error_log("Failed to move uploaded file");
                 return $this->errorResponse("Failed to save uploaded file");
             }
+            
+            error_log("File moved successfully. Now saving to database.");
             
             // Save file info to database - match actual table structure
             $sql = "INSERT INTO announcement_files (announcement_id, file_name, original_name, file_type, file_path, file_size, upload_purpose)
@@ -76,6 +90,7 @@ class FileUploadAPI {
             
             if ($stmt->execute([$announcement_id, $unique_filename, $file['name'], $file_type, $file_path, $file['size'], $upload_purpose])) {
                 $file_id = $this->pdo->lastInsertId();
+                error_log("Database insert successful. File ID: $file_id");
                 
                 return $this->successResponse([
                     "message" => "File uploaded successfully",
@@ -87,10 +102,12 @@ class FileUploadAPI {
             }
             
             // If database insert failed, delete the uploaded file
+            error_log("Database insert failed. Deleting uploaded file.");
             unlink($file_path);
             return $this->errorResponse("Failed to save file information to database");
             
         } catch (Exception $e) {
+            error_log("Exception in uploadFile: " . $e->getMessage());
             return $this->errorResponse("Upload failed: " . $e->getMessage());
         }
     }
@@ -103,6 +120,7 @@ class FileUploadAPI {
     }
     
     private function errorResponse($message) {
+        error_log("Upload error: " . $message);
         return json_encode([
             "success" => false,
             "error" => $message

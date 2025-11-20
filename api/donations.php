@@ -78,14 +78,14 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("isssdsisss",
+            $stmt->bind_param("issdsisss",
                 $announcement_id,
                 $donor_name,
                 $donor_email,
                 isset($input['donor_phone']) ? trim($input['donor_phone']) : null,
                 $amount,
                 isset($input['donor_message']) ? trim($input['donor_message']) : null,
-                isset($input['is_anonymous']) ? (bool)$input['is_anonymous'] : false,
+                isset($input['is_anonymous']) ? (int)$input['is_anonymous'] : 0,
                 $payment_method,
                 $payment_reference
             );
@@ -169,189 +169,6 @@ class DonationAPI {
             
         } catch (PDOException $e) {
             return $this->errorResponse("Failed to fetch donations: " . $e->getMessage());
-        }
-    }
-    
-    // Upload file for announcement
-    public function uploadFile() {
-        $session_token = $this->getAuthToken();
-        if (!$session_token) {
-            return $this->errorResponse("Authentication required");
-        }
-        
-        $user_id = $this->getUserIdFromToken($session_token);
-        if (!$user_id) {
-            return $this->errorResponse("Invalid authentication token");
-        }
-        
-        if (!isset($_POST['announcement_id']) || !isset($_POST['upload_purpose'])) {
-            return $this->errorResponse("announcement_id and upload_purpose are required");
-        }
-        
-        $announcement_id = (int)$_POST['announcement_id'];
-        $upload_purpose = $_POST['upload_purpose'];
-        
-        // Validate upload purpose
-        $allowed_purposes = ['deceased_photo', 'family_photo', 'document', 'other'];
-        if (!in_array($upload_purpose, $allowed_purposes)) {
-            return $this->errorResponse("Invalid upload purpose. Allowed: " . implode(', ', $allowed_purposes));
-        }
-        
-        // Check if user owns the announcement
-        if (!$this->isAnnouncementOwner($announcement_id, $user_id)) {
-            return $this->errorResponse("You can only upload files to your own announcements");
-        }
-        
-        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-            return $this->errorResponse("No file uploaded or upload error occurred");
-        }
-        
-        $file = $_FILES['file'];
-        
-        // Validate file type and size
-        $allowed_types = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'application/pdf', 'application/msword', 
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx'];
-        $file_info = new finfo(FILEINFO_MIME_TYPE);
-        $mime_type = $file_info->file($file['tmp_name']);
-        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        
-        if (!in_array($mime_type, $allowed_types) || !in_array($file_extension, $allowed_extensions)) {
-            return $this->errorResponse("Invalid file type. Only images (JPEG, PNG, GIF, WebP) and documents (PDF, DOC, DOCX) are allowed");
-        }
-        
-        if ($file['size'] > 10 * 1024 * 1024) { // 10MB limit
-            return $this->errorResponse("File size too large. Maximum size is 10MB");
-        }
-        
-        try {
-            // Generate unique filename
-            $new_filename = uniqid() . '_' . time() . '.' . $file_extension;
-            $upload_path = $this->upload_dir . $new_filename;
-            
-            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                // Determine file type
-                $file_type = strpos($mime_type, 'image/') === 0 ? 'image' : 'document';
-                
-                // Insert file record
-                $sql = "
-                    INSERT INTO announcement_files (
-                        announcement_id, file_name, original_name, file_type,
-                        file_path, file_size, upload_purpose
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ";
-                
-                $stmt = $this->pdo->prepare($sql);
-                $stmt->bind_param("isssssis",
-                    $announcement_id,
-                    $new_filename,
-                    $file['name'],
-                    $file_type,
-                    $upload_path,
-                    $file['size'],
-                    $upload_purpose
-                );
-                
-                if ($stmt->execute()) {
-                    $file_id = $this->pdo->lastInsertId();
-                    
-                    // Log activity
-                    $this->logActivity($user_id, 'file_upload', "Uploaded file ID: $file_id for announcement: $announcement_id");
-                    
-                    return $this->successResponse([
-                        "message" => "File uploaded successfully",
-                        "file_id" => $file_id,
-                        "file_url" => $upload_path
-                    ]);
-                }
-            }
-            
-            return $this->errorResponse("Failed to save file");
-            
-        } catch (PDOException $e) {
-            return $this->errorResponse("Failed to save file record: " . $e->getMessage());
-        }
-    }
-    
-    // Get files for an announcement
-    public function getFiles($announcement_id) {
-        try {
-            // Check access permissions
-            $session_token = $this->getAuthToken();
-            $user_id = $session_token ? $this->getUserIdFromToken($session_token) : null;
-            
-            if (!$this->isAnnouncementPublic($announcement_id) && 
-                !$this->isAnnouncementOwner($announcement_id, $user_id)) {
-                return $this->errorResponse("Access denied or announcement not found");
-            }
-            
-            $sql = "SELECT * FROM announcement_files WHERE announcement_id = ? ORDER BY upload_purpose, uploaded_at DESC";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
-            $stmt->execute();
-            $files = $stmt->fetchAll();
-            
-            return $this->successResponse($files);
-            
-        } catch (PDOException $e) {
-            return $this->errorResponse("Failed to fetch files: " . $e->getMessage());
-        }
-    }
-    
-    // Delete file
-    public function deleteFile($file_id) {
-        $session_token = $this->getAuthToken();
-        if (!$session_token) {
-            return $this->errorResponse("Authentication required");
-        }
-        
-        $user_id = $this->getUserIdFromToken($session_token);
-        if (!$user_id) {
-            return $this->errorResponse("Invalid authentication token");
-        }
-        
-        try {
-            // Get file info and check ownership
-            $sql = "SELECT af.*, fa.creator_user_id FROM announcement_files af 
-                    JOIN funeral_announcements fa ON af.announcement_id = fa.id 
-                    WHERE af.id = ?";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $file_id);
-            $stmt->execute();
-            $file = $stmt->fetch();
-            
-            if (!$file) {
-                return $this->errorResponse("File not found");
-            }
-            
-            if ($file['creator_user_id'] != $user_id) {
-                return $this->errorResponse("You can only delete your own files");
-            }
-            
-            // Delete file from filesystem
-            if (file_exists($file['file_path'])) {
-                unlink($file['file_path']);
-            }
-            
-            // Delete file record from database
-            $delete_sql = "DELETE FROM announcement_files WHERE id = ?";
-            $delete_stmt = $this->pdo->prepare($delete_sql);
-            $delete_stmt->bind_param("i", $file_id);
-            
-            if ($delete_stmt->execute()) {
-                $this->logActivity($user_id, 'file_delete', "Deleted file ID: $file_id");
-                
-                return $this->successResponse(["message" => "File deleted successfully"]);
-            }
-            
-            return $this->errorResponse("Failed to delete file");
-            
-        } catch (PDOException $e) {
-            return $this->errorResponse("Failed to delete file: " . $e->getMessage());
         }
     }
     
@@ -500,18 +317,6 @@ class DonationAPI {
         }
     }
     
-    private function logActivity($user_id, $action, $details) {
-        try {
-            $sql = "INSERT INTO activity_logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)";
-            $stmt = $this->pdo->prepare($sql);
-            $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $stmt->bind_param("isss", $user_id, $action, $details, $ip_address);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Log silently
-        }
-    }
-    
     private function successResponse($data) {
         return json_encode([
             "success" => true,
@@ -534,28 +339,15 @@ $action = $_GET['action'] ?? '';
 
 switch ($method) {
     case 'POST':
-        if ($action === 'upload') {
-            echo $donation_api->uploadFile();
-        } else {
-            echo $donation_api->createDonation();
-        }
+        echo $donation_api->createDonation();
         break;
     case 'GET':
-        if ($action === 'files' && isset($_GET['announcement_id'])) {
-            echo $donation_api->getFiles($_GET['announcement_id']);
-        } elseif ($action === 'stats' && isset($_GET['announcement_id'])) {
+        if ($action === 'stats' && isset($_GET['announcement_id'])) {
             echo $donation_api->getDonationStats($_GET['announcement_id']);
         } elseif (isset($_GET['announcement_id'])) {
             echo $donation_api->getDonations($_GET['announcement_id']);
         } else {
             echo json_encode(["success" => false, "error" => "announcement_id required"]);
-        }
-        break;
-    case 'DELETE':
-        if ($action === 'file' && isset($_GET['file_id'])) {
-            echo $donation_api->deleteFile($_GET['file_id']);
-        } else {
-            echo json_encode(["success" => false, "error" => "file_id required"]);
         }
         break;
     default:
