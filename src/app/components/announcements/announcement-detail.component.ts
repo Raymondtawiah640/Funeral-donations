@@ -170,20 +170,6 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
             </div>
             
             <div>
-              <label class="block text-sm font-medium text-gray-500">Raised Amount</label>
-              <p class="mt-1 text-lg text-gray-900">\${{ announcement.total_raised || 0 | number:'1.2-2' }}</p>
-              <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  class="bg-blue-600 h-2 rounded-full" 
-                  [style.width.%]="getProgressPercentage()"
-                ></div>
-              </div>
-              <p class="mt-1 text-xs text-gray-500">
-                {{ getProgressPercentage() | number:'1.0-0' }}% of goal reached
-              </p>
-            </div>
-            
-            <div>
               <label class="block text-sm font-medium text-gray-500">Payment Details</label>
               <div class="mt-1 text-sm text-gray-900">
                 <p *ngIf="announcement.beneficiary_account_type === 'bank'">
@@ -347,16 +333,7 @@ export class AnnouncementDetailComponent implements OnInit {
 
   getFileUrl(file: AnnouncementFile): string {
     // Return the full URL to the uploaded file using the files.php endpoint
-    return `https://kilnenterprise.com/Donations/api/files.php?file_id=${file.id}`;
-  }
-
-  getProgressPercentage(): number {
-    if (!this.announcement?.goal_amount || this.announcement.goal_amount === 0) {
-      return 0;
-    }
-    
-    const raised = this.announcement.total_raised || 0;
-    return Math.min((raised / this.announcement.goal_amount) * 100, 100);
+    return `https://kilnenterprise.com/Donations/files.php?file_id=${file.id}`;
   }
 
   openImageModal(file: AnnouncementFile): void {

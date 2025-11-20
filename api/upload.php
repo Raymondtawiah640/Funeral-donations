@@ -12,7 +12,7 @@ require_once 'db_connect.php';
 
 class FileUploadAPI {
     private $pdo;
-    private $upload_dir = '../uploads/';
+    private $upload_dir = './uploads/';
     private $max_file_size = 10485760; // 10MB in bytes
     
     public function __construct() {

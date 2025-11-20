@@ -72,16 +72,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                         <span class="text-sm text-gray-500">Goal:</span>
                         <span class="ml-1 font-medium text-gray-900">GH₵{{ announcement.goal_amount | number:'1.2-2' }}</span>
                       </div>
-                      
-                      <div>
-                        <span class="text-sm text-gray-500">Raised:</span>
-                        <span class="ml-1 font-medium text-green-600">GH₵{{ announcement.total_raised || 0 | number:'1.2-2' }}</span>
-                      </div>
-                      
-                      <div *ngIf="announcement.goal_amount && announcement.goal_amount > 0">
-                        <span class="text-sm text-gray-500">Progress:</span>
-                        <span class="ml-1 font-medium text-gray-900">{{ getProgressPercentage(announcement) | number:'1.0-0' }}%</span>
-                      </div>
                     </div>
                     
                     <div class="flex items-center space-x-3">
@@ -168,20 +158,11 @@ export class AnnouncementsComponent implements OnInit {
     });
   }
 
-  getProgressPercentage(announcement: FuneralAnnouncement): number {
-    if (!announcement.goal_amount || announcement.goal_amount === 0) {
-      return 0;
-    }
-    
-    const raised = announcement.total_raised || 0;
-    return Math.min((raised / announcement.goal_amount) * 100, 100);
-  }
-
   getThumbnailImage(announcement: FuneralAnnouncement): string | null {
     const deceasedPhoto = announcement.files?.find(file => file.upload_purpose === 'deceased_photo');
     if (deceasedPhoto && deceasedPhoto.file_type === 'image') {
       // Return the full URL to the uploaded image
-      return `https://kilnenterprise.com/Donations/api/${deceasedPhoto.file_path}`;
+      return `https://kilnenterprise.com/Donations/${deceasedPhoto.file_path}`;
     }
     return null;
   }

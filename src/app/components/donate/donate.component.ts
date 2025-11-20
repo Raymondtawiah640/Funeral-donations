@@ -34,7 +34,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
               <p class="text-gray-600">{{ getMessagePreview() }}</p>
               <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                 <span *ngIf="announcement.goal_amount">Goal: {{ formatCurrency(announcement.goal_amount) }}</span>
-                <span>Raised: {{ formatCurrency(announcement.total_raised || 0) }}</span>
               </div>
             </div>
           </div>
@@ -133,19 +132,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                   </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Donation Amount Tracker -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <h4 class="text-md font-medium text-blue-900 mb-3">Donation Progress</h4>
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-blue-700">Raised: {{ formatCurrency(announcement.total_raised || 0) }}</span>
-                <span class="text-sm text-blue-700" *ngIf="announcement.goal_amount">Goal: {{ formatCurrency(announcement.goal_amount) }}</span>
-              </div>
-              <div class="w-full bg-blue-200 rounded-full h-3">
-                <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" [style.width.%]="getProgressPercentage()"></div>
-              </div>
-              <p class="mt-2 text-sm text-blue-700">{{ getProgressPercentage() | number:'1.0-0' }}% of goal reached</p>
             </div>
 
             <!-- Thank You Message -->
@@ -306,18 +292,9 @@ export class DonateComponent implements OnInit {
   getThumbnailImage(announcement: FuneralAnnouncement): string | null {
     const deceasedPhoto = announcement.files?.find(file => file.upload_purpose === 'deceased_photo');
     if (deceasedPhoto && deceasedPhoto.file_type === 'image') {
-      return `https://kilnenterprise.com/Donations/api/${deceasedPhoto.file_path}`;
+      return `https://kilnenterprise.com/Donations/${deceasedPhoto.file_path}`;
     }
     return null;
-  }
-
-  getProgressPercentage(): number {
-    if (!this.announcement?.goal_amount || this.announcement.goal_amount === 0) {
-      return 0;
-    }
-    
-    const raised = this.announcement.total_raised || 0;
-    return Math.min((raised / this.announcement.goal_amount) * 100, 100);
   }
 
   formatCurrency(amount: number | string | null | undefined): string {

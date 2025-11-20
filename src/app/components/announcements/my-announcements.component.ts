@@ -72,11 +72,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                       <span class="font-medium text-gray-500">Ends:</span>
                       <span class="ml-1 text-gray-900">{{ announcement.announcement_end_date | date:'longDate' }}</span>
                     </div>
-
-                    <div>
-                      <span class="font-medium text-gray-500">Donations:</span>
-                      <span class="ml-1 text-gray-900">{{ formatCurrency(announcement.total_raised || 0) }}</span>
-                    </div>
                   </div>
                   
                   <div class="mt-4 flex items-center justify-between">
@@ -84,11 +79,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                       <div *ngIf="announcement.goal_amount">
                         <span class="text-sm text-gray-500">Goal:</span>
                         <span class="ml-1 font-medium text-gray-900">{{ formatCurrency(announcement.goal_amount) }}</span>
-                      </div>
-                      
-                      <div *ngIf="announcement.goal_amount && announcement.goal_amount > 0">
-                        <span class="text-sm text-gray-500">Progress:</span>
-                        <span class="ml-1 font-medium text-gray-900">{{ getProgressPercentage(announcement) | number:'1.0-0' }}%</span>
                       </div>
                     </div>
                     
@@ -198,19 +188,10 @@ export class MyAnnouncementsComponent implements OnInit {
     });
   }
 
-  getProgressPercentage(announcement: FuneralAnnouncement): number {
-    if (!announcement.goal_amount || announcement.goal_amount === 0) {
-      return 0;
-    }
-    
-    const raised = announcement.total_raised || 0;
-    return Math.min((raised / announcement.goal_amount) * 100, 100);
-  }
-
   getThumbnailImage(announcement: FuneralAnnouncement): string | null {
     const deceasedPhoto = announcement.files?.find(file => file.upload_purpose === 'deceased_photo');
     if (deceasedPhoto && deceasedPhoto.file_type === 'image') {
-      return `https://kilnenterprise.com/Donations/api/${deceasedPhoto.file_path}`;
+      return `https://kilnenterprise.com/Donations/${deceasedPhoto.file_path}`;
     }
     return null;
   }
