@@ -117,6 +117,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                       </svg>
                     </button>
+                    <span *ngIf="copiedMessage" class="ml-2 text-sm text-green-600">{{ copiedMessage }}</span>
                   </div>
                 </div>
                 
@@ -129,6 +130,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                       </svg>
                     </button>
+                    <span *ngIf="copiedMessage" class="ml-2 text-sm text-green-600">{{ copiedMessage }}</span>
                   </div>
                 </div>
               </div>
@@ -141,6 +143,12 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                 After making your donation, the family will be notified and the donation amount will be updated on this page.
                 Please keep your transaction receipt for your records.
               </p>
+              <div *ngIf="apiService.isLoggedIn()" class="mt-4">
+                <button type="button" (click)="sendBeneficiaryDataToUser()"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  Send Beneficiary Details to My Email
+                </button>
+              </div>
             </div>
           </div>
 
@@ -155,13 +163,13 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
               <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Your Name *</label>
-                  <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName" 
+                  <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName"
                          class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm"
                          placeholder="Enter your full name">
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                  <input type="email" name="donorEmail" required [(ngModel)]="donorInfo.email" 
+                  <input type="email" name="donorEmail" required [(ngModel)]="donorInfo.email"
                          class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm"
                          placeholder="Enter your email address">
                 </div>
@@ -169,22 +177,6 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                   <label class="block text-sm font-medium text-gray-700 mb-2">Message (Optional)</label>
                   <textarea name="donorMessage" [(ngModel)]="donorInfo.phone" rows="4"
                             class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out text-gray-900 placeholder-gray-500 sm:text-sm resize-none"
-                            placeholder="Share a message of support..."></textarea>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Your Name *</label>
-                  <input type="text" name="donorName" required [(ngModel)]="donorInfo.firstName" 
-                         class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Email *</label>
-                  <input type="email" name="donorEmail" required [(ngModel)]="donorInfo.email" 
-                         class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="block text-sm font-medium text-gray-700">Message (Optional)</label>
-                  <textarea name="donorMessage" [(ngModel)]="donorInfo.phone" rows="3"
-                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                             placeholder="Share a message of support..."></textarea>
                 </div>
               </div>
@@ -220,9 +212,10 @@ export class DonateComponent implements OnInit {
   showErrorMessage = false;
   errorMessage = '';
   isLoading = true;
+  copiedMessage = '';
 
   constructor(
-    private apiService: ApiService,
+    public apiService: ApiService,
     private route: ActivatedRoute
   ) {}
 
@@ -330,8 +323,30 @@ export class DonateComponent implements OnInit {
   copyToClipboard(text: string): void {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
-        console.log('Copied to clipboard:', text);
+        this.copiedMessage = 'Copied!';
+        setTimeout(() => {
+          this.copiedMessage = '';
+        }, 2000);
       });
     }
+  }
+
+  sendBeneficiaryDataToUser(): void {
+    if (!this.announcementId || !this.apiService.isLoggedIn()) {
+      return;
+    }
+
+    this.apiService.sendBeneficiaryDataToUser(this.announcementId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          alert('Beneficiary information sent to your email successfully!');
+        } else {
+          alert('Failed to send beneficiary information: ' + (response.error || 'Unknown error'));
+        }
+      },
+      error: (error) => {
+        alert('Error: ' + this.apiService.getErrorMessage(error));
+      }
+    });
   }
 }

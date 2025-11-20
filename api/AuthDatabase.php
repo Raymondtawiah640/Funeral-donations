@@ -128,10 +128,26 @@ class AuthDatabase {
             $stmt->bindParam(1, $loginCode);
             $stmt->bindParam(2, $expiresAt);
             $stmt->bindParam(3, $userId);
-            
+
             return $stmt->execute();
         } catch (Exception $e) {
             throw new Exception("Failed to update login code: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update user session token
+     */
+    public function updateUserSessionToken($userId, $sessionToken) {
+        try {
+            $sql = "UPDATE users SET session_token = ? WHERE id = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(1, $sessionToken);
+            $stmt->bindParam(2, $userId);
+
+            return $stmt->execute();
+        } catch (Exception $e) {
+            throw new Exception("Failed to update session token: " . $e->getMessage());
         }
     }
     

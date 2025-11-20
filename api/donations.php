@@ -79,17 +79,18 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("issdsisss",
-                $announcement_id,
-                $donor_name,
-                $donor_email,
-                isset($input['donor_phone']) ? trim($input['donor_phone']) : null,
-                $amount,
-                isset($input['donor_message']) ? trim($input['donor_message']) : null,
-                isset($input['is_anonymous']) ? (int)$input['is_anonymous'] : 0,
-                $payment_method,
-                $payment_reference
-            );
+            $stmt->bindParam(1, $announcement_id);
+            $stmt->bindParam(2, $donor_name);
+            $stmt->bindParam(3, $donor_email);
+            $phone = isset($input['donor_phone']) ? trim($input['donor_phone']) : null;
+            $stmt->bindParam(4, $phone);
+            $stmt->bindParam(5, $amount);
+            $message = isset($input['donor_message']) ? trim($input['donor_message']) : null;
+            $stmt->bindParam(6, $message);
+            $anonymous = isset($input['is_anonymous']) ? (int)$input['is_anonymous'] : 0;
+            $stmt->bindParam(7, $anonymous);
+            $stmt->bindParam(8, $payment_method);
+            $stmt->bindParam(9, $payment_reference);
             
             if ($stmt->execute()) {
                 $donation_id = $this->pdo->lastInsertId();
@@ -147,14 +148,16 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("iii", $announcement_id, $limit, $offset);
+            $stmt->bindParam(1, $announcement_id);
+            $stmt->bindParam(2, $limit);
+            $stmt->bindParam(3, $offset);
             $stmt->execute();
             $donations = $stmt->fetchAll();
-            
+
             // Get total count for pagination
             $count_sql = "SELECT COUNT(*) as total FROM donations WHERE announcement_id = ? AND status = 'completed'";
             $count_stmt = $this->pdo->prepare($count_sql);
-            $count_stmt->bind_param("i", $announcement_id);
+            $count_stmt->bindParam(1, $announcement_id);
             $count_stmt->execute();
             $total = $count_stmt->fetch()['total'];
             
@@ -177,13 +180,17 @@ class DonationAPI {
     public function sendNotification() {
         $input = json_decode(file_get_contents('php://input'), true);
 
+        if ($input === null) {
+            return $this->errorResponse("Invalid JSON input");
+        }
+
         // Validate required fields
-        if (!$input || !isset($input['announcement_id']) || !isset($input['donor_name']) || !isset($input['donor_email']) ||
+        if (!isset($input['announcement_id']) || !isset($input['donor_name']) || !isset($input['donor_email']) ||
             !isset($input['message'])) {
             return $this->errorResponse("Required fields: announcement_id, donor_name, donor_email, message");
         }
 
-        $announcement_id = $input['announcement_id'];
+        $announcement_id = (int)$input['announcement_id'];
         $donor_name = trim($input['donor_name']);
         $donor_email = filter_var(trim($input['donor_email']), FILTER_VALIDATE_EMAIL);
         $message = trim($input['message']);
@@ -205,7 +212,7 @@ class DonationAPI {
             ";
 
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
+            $stmt->bindParam(1, $announcement_id);
             $stmt->execute();
             $announcement = $stmt->fetch();
 
@@ -214,31 +221,142 @@ class DonationAPI {
             }
 
             // Send email notification
-            $mailer = new GmailSMTPMailer();
-            $subject = "New Donation Notification for " . $announcement['deceased_name'];
+            try {
+                $mailer = new GmailSMTPMailer();
+                $subject = "New Donation Notification for " . $announcement['deceased_name'];
 
-            $emailMessage = "Dear " . $announcement['creator_name'] . ",\n\n";
-            $emailMessage .= "You have received a new donation notification for the funeral announcement of " . $announcement['deceased_name'] . ".\n\n";
-            $emailMessage .= "Donor Details:\n";
-            $emailMessage .= "Name: " . $donor_name . "\n";
-            $emailMessage .= "Email: " . $donor_email . "\n";
-            $emailMessage .= "Message: " . $message . "\n\n";
-            $emailMessage .= "Please check your announcement dashboard for more details.\n\n";
-            $emailMessage .= "Best regards,\n";
-            $emailMessage .= "Legacy Donation Team";
+                $emailMessage = "Dear " . $announcement['creator_name'] . ",\n\n";
+                $emailMessage .= "You have received a new donation notification for the funeral announcement of " . $announcement['deceased_name'] . ".\n\n";
+                $emailMessage .= "Donor Details:\n";
+                $emailMessage .= "Name: " . $donor_name . "\n";
+                $emailMessage .= "Email: " . $donor_email . "\n";
+                $emailMessage .= "Message: " . $message . "\n\n";
+                $emailMessage .= "Please check your announcement dashboard for more details.\n\n";
+                $emailMessage .= "Best regards,\n";
+                $emailMessage .= "Legacy Donation Team";
 
-            $emailSent = $mailer->sendEmail($announcement['creator_email'], $subject, $emailMessage);
+                $emailSent = $mailer->sendEmail($announcement['creator_email'], $subject, $emailMessage);
 
-            if ($emailSent) {
-                return $this->successResponse([
-                    "message" => "Notification sent successfully to the announcement creator"
-                ]);
-            } else {
-                return $this->errorResponse("Failed to send notification email");
+                if ($emailSent) {
+                    return $this->successResponse([
+                        "message" => "Notification sent successfully to the announcement creator"
+                    ]);
+                } else {
+                    return $this->errorResponse("Failed to send notification email");
+                }
+            } catch (Exception $e) {
+                return $this->errorResponse("Failed to send notification: " . $e->getMessage());
             }
 
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             return $this->errorResponse("Failed to send notification: " . $e->getMessage());
+        }
+    }
+
+    // Send beneficiary data to logged-in user
+    public function sendBeneficiaryData() {
+        error_log("sendBeneficiaryData called");
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        if ($input === null) {
+            error_log("Invalid JSON input");
+            return $this->errorResponse("Invalid JSON input");
+        }
+
+        if (!isset($input['announcement_id'])) {
+            error_log("announcement_id required");
+            return $this->errorResponse("announcement_id required");
+        }
+
+        $announcement_id = (int)$input['announcement_id'];
+        error_log("announcement_id: $announcement_id");
+
+        // Check authentication
+        $session_token = $this->getAuthToken();
+        if (!$session_token) {
+            error_log("Authentication required - no token");
+            return $this->errorResponse("Authentication required");
+        }
+        error_log("session_token: $session_token");
+
+        $user_id = $this->getUserIdFromToken($session_token);
+        if (!$user_id) {
+            error_log("Invalid authentication - user_id not found for token");
+            return $this->errorResponse("Invalid authentication");
+        }
+        error_log("user_id: $user_id");
+
+        try {
+            // Get announcement and user email
+            $sql = "
+                SELECT
+                    fa.deceased_name,
+                    fa.beneficiary_name,
+                    fa.beneficiary_bank_account,
+                    fa.beneficiary_mobile_money,
+                    fa.beneficiary_account_type,
+                    u.email as user_email,
+                    u.full_name as user_name
+                FROM funeral_announcements fa
+                JOIN users u ON u.id = ?
+                WHERE fa.id = ?
+            ";
+            error_log("SQL: $sql");
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(1, $user_id);
+            $stmt->bindParam(2, $announcement_id);
+            $stmt->execute();
+            $data = $stmt->fetch();
+            error_log("Data fetched: " . json_encode($data));
+
+            if (!$data) {
+                error_log("No data found for user_id: $user_id, announcement_id: $announcement_id");
+                return $this->errorResponse("Announcement not found or access denied");
+            }
+
+            // Send email with beneficiary data
+            try {
+                error_log("Sending email to: " . $data['user_email']);
+                $mailer = new GmailSMTPMailer();
+                $subject = "Beneficiary Information for " . $data['deceased_name'];
+
+                $emailMessage = "Dear " . $data['user_name'] . ",\n\n";
+                $emailMessage .= "Here is the beneficiary information for the funeral announcement of " . $data['deceased_name'] . ":\n\n";
+                $emailMessage .= "Beneficiary Name: " . $data['beneficiary_name'] . "\n";
+
+                if ($data['beneficiary_account_type'] === 'bank') {
+                    $emailMessage .= "Bank Account Number: " . $data['beneficiary_bank_account'] . "\n";
+                } else {
+                    $emailMessage .= "Mobile Money Number: " . $data['beneficiary_mobile_money'] . "\n";
+                }
+
+                $emailMessage .= "Account Type: " . ($data['beneficiary_account_type'] === 'bank' ? 'Bank Account' : 'Mobile Money') . "\n\n";
+                $emailMessage .= "Please keep this information secure and only share with trusted donors.\n\n";
+                $emailMessage .= "Best regards,\n";
+                $emailMessage .= "Legacy Donation Team";
+
+                error_log("Email message: $emailMessage");
+                $emailSent = $mailer->sendEmail($data['user_email'], $subject, $emailMessage);
+                error_log("Email sent result: " . ($emailSent ? 'true' : 'false'));
+
+                if ($emailSent) {
+                    // Log the activity
+                    $this->logDonationActivity(0, $announcement_id, 'beneficiary_data_sent');
+                    return $this->successResponse([
+                        "message" => "Beneficiary information sent to your email successfully"
+                    ]);
+                } else {
+                    error_log("Failed to send email");
+                    return $this->errorResponse("Failed to send beneficiary information email");
+                }
+            } catch (Exception $e) {
+                error_log("Exception sending email: " . $e->getMessage());
+                return $this->errorResponse("Failed to send beneficiary information: " . $e->getMessage());
+            }
+
+        } catch (Exception $e) {
+            return $this->errorResponse("Failed to send beneficiary information: " . $e->getMessage());
         }
     }
 
@@ -257,7 +375,7 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
+            $stmt->bindParam(1, $announcement_id);
             $stmt->execute();
             $stats = $stmt->fetch();
             
@@ -292,7 +410,7 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
+            $stmt->bindParam(1, $announcement_id);
             $stmt->execute();
             return $stmt->fetch();
         } catch (PDOException $e) {
@@ -313,7 +431,8 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("ii", $announcement_id, $announcement_id);
+            $stmt->bindParam(1, $announcement_id);
+            $stmt->bindParam(2, $announcement_id);
             $stmt->execute();
         } catch (PDOException $e) {
             // Log silently
@@ -329,7 +448,7 @@ class DonationAPI {
             ";
             
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("i", $announcement_id);
+            $stmt->bindParam(1, $announcement_id);
             $stmt->execute();
             $result = $stmt->fetch();
             
@@ -345,7 +464,8 @@ class DonationAPI {
         try {
             $sql = "SELECT COUNT(*) as count FROM funeral_announcements WHERE id = ? AND creator_user_id = ?";
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bind_param("ii", $announcement_id, $user_id);
+            $stmt->bindParam(1, $announcement_id);
+            $stmt->bindParam(2, $user_id);
             $stmt->execute();
             $result = $stmt->fetch();
             
@@ -367,11 +487,17 @@ class DonationAPI {
     }
     
     private function getUserIdFromToken($token) {
-        // Simplified - in production, validate against database
-        if (strlen($token) === 64) {
-            return 1; // Demo user ID
+        try {
+            $sql = "SELECT id FROM users WHERE session_token = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(1, $token);
+            $stmt->execute();
+            $result = $stmt->fetch();
+
+            return $result ? $result['id'] : null;
+        } catch (PDOException $e) {
+            return null;
         }
-        return null;
     }
     
     private function logDonationActivity($donation_id, $announcement_id, $action) {
@@ -380,7 +506,9 @@ class DonationAPI {
             $stmt = $this->pdo->prepare($sql);
             $details = "Donation ID: $donation_id, Announcement ID: $announcement_id";
             $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-            $stmt->bind_param("sss", $action, $details, $ip_address);
+            $stmt->bindParam(1, $action);
+            $stmt->bindParam(2, $details);
+            $stmt->bindParam(3, $ip_address);
             $stmt->execute();
         } catch (PDOException $e) {
             // Log silently
@@ -411,6 +539,8 @@ switch ($method) {
     case 'POST':
         if ($action === 'notify') {
             echo $donation_api->sendNotification();
+        } elseif ($action === 'send-beneficiary') {
+            echo $donation_api->sendBeneficiaryData();
         } else {
             echo $donation_api->createDonation();
         }

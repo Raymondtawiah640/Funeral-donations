@@ -84,6 +84,18 @@ CREATE TABLE verification_logs (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Contact messages table
+CREATE TABLE contact_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'new',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Activity logs for security
 CREATE TABLE activity_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

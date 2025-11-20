@@ -4,7 +4,8 @@
  * Handles contact form submissions
  */
 
-require_once __DIR__ . '/../includes/db_connect.php';
+require_once  'db_connect.php';
+require_once 'GmailSMTPMailer.php';
 
 // Handle CORS preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -121,7 +122,33 @@ function createContactMessage($pdo) {
         
         $stmt->execute([$name, $email, $phone, $subject, $message]);
         $message_id = $pdo->lastInsertId();
-        
+
+        // Send email notification
+        try {
+            $mailer = new GmailSMTPMailer();
+            $emailSubject = "New Contact Form Submission: " . $subject;
+            $emailMessage = "Dear Admin,\n\n";
+            $emailMessage .= "You have received a new contact form submission.\n\n";
+            $emailMessage .= "Contact Details:\n";
+            $emailMessage .= "Name: " . $name . "\n";
+            $emailMessage .= "Email: " . $email . "\n";
+            $emailMessage .= "Phone: " . ($phone ?: 'Not provided') . "\n";
+            $emailMessage .= "Subject: " . $subject . "\n";
+            $emailMessage .= "Message:\n" . $message . "\n\n";
+            $emailMessage .= "Please respond to this inquiry as soon as possible.\n\n";
+            $emailMessage .= "Best regards,\n";
+            $emailMessage .= "Legacy Donation System";
+
+            $emailSent = $mailer->sendEmail('melakahinfotechsolutions@gmail.com', $emailSubject, $emailMessage);
+
+            if (!$emailSent) {
+                // Log but don't fail the request
+                error_log("Failed to send contact email to admin");
+            }
+        } catch (Exception $e) {
+            error_log("Exception sending contact email: " . $e->getMessage());
+        }
+
         sendResponse(true, "Contact message sent successfully", ['message_id' => $message_id]);
         
     } catch (PDOException $e) {

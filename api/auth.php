@@ -225,7 +225,10 @@ class AuthAPI {
             
             // Generate session token
             $session_token = $this->db->generateSessionToken();
-            
+
+            // Store session token
+            $this->db->updateUserSessionToken($user['id'], $session_token);
+
             // Log login activity
             $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $this->db->logUserActivity($user['id'], 'login', $ip_address);

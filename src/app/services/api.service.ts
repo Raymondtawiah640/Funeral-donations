@@ -225,6 +225,15 @@ export class ApiService {
     );
   }
 
+  sendBeneficiaryDataToUser(announcementId: number): Observable<ApiResponse<any>> {
+    const headers = this.getAuthHeaders();
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/donations.php?action=send-beneficiary`, {
+      announcement_id: announcementId
+    }, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
   // File upload methods
   uploadFile(announcementId: number, file: File, uploadPurpose: string): Observable<ApiResponse<any>> {
     const formData = new FormData();
