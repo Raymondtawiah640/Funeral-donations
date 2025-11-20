@@ -44,7 +44,7 @@ class GmailSMTPMailer {
         if (!$socket) {
             $error = "SMTP connection failed: $errstr ($errno)";
             error_log($error);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Read server greeting
@@ -53,7 +53,7 @@ class GmailSMTPMailer {
             $error = "SMTP greeting failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send EHLO
@@ -68,7 +68,7 @@ class GmailSMTPMailer {
             $error = "STARTTLS failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Enable encryption
@@ -76,7 +76,7 @@ class GmailSMTPMailer {
             $error = "TLS encryption failed";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send EHLO again (required after STARTTLS)
@@ -91,7 +91,7 @@ class GmailSMTPMailer {
             $error = "AUTH LOGIN failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send username
@@ -102,7 +102,7 @@ class GmailSMTPMailer {
             $error = "Username authentication failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send password
@@ -113,7 +113,7 @@ class GmailSMTPMailer {
             $error = "Password authentication failed: $response - Check your Gmail App Password";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send MAIL FROM
@@ -124,7 +124,7 @@ class GmailSMTPMailer {
             $error = "MAIL FROM failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send RCPT TO
@@ -135,7 +135,7 @@ class GmailSMTPMailer {
             $error = "RCPT TO failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send DATA
@@ -146,7 +146,7 @@ class GmailSMTPMailer {
             $error = "DATA command failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send email headers and body
@@ -163,14 +163,14 @@ class GmailSMTPMailer {
             $error = "Email send failed: $response";
             error_log($error);
             fclose($socket);
-            return ['success' => false, 'error' => $error];
+            return false;
         }
 
         // Send QUIT
         fwrite($socket, "QUIT\r\n");
         fclose($socket);
 
-        return ['success' => true];
+        return true;
     }
     
     private function readMultilineResponse($socket) {
@@ -185,7 +185,7 @@ class GmailSMTPMailer {
         return $response;
     }
     
-    private function fallbackMail($to, $subject, $message, $smtpError = null) {
+    private function fallbackMail($to, $subject, $message) {
         $headers = [
             'From: Legacy Donation <raymondtawiah23@gmail.com>',
             'Reply-To: support@legacy-donation.com',
@@ -205,15 +205,10 @@ class GmailSMTPMailer {
         $mailSent = mail($to, $subject, $fullMessage, implode("\r\n", $headers));
 
         if (!$mailSent) {
-            $error = "PHP mail() function failed for: $to";
-            if ($smtpError) {
-                $error .= " (SMTP failed with: $smtpError)";
-            }
-            error_log($error);
-            return ['success' => false, 'error' => $error];
+            error_log("PHP mail() function failed for: $to");
         }
 
-        return ['success' => true];
+        return $mailSent;
     }
 }
 ?>

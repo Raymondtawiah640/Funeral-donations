@@ -7,6 +7,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
+    role VARCHAR(20) DEFAULT 'user',
     is_verified BOOLEAN DEFAULT 0,
     verification_code VARCHAR(6),
     verification_expires_at DATETIME,
@@ -109,9 +110,10 @@ CREATE TABLE activity_logs (
 );
 
 -- Sample data for testing
-INSERT INTO users (email, full_name, phone) VALUES 
-('john.doe@email.com', 'John Doe', '+1234567890'),
-('jane.smith@email.com', 'Jane Smith', '+0987654321');
+INSERT INTO users (email, full_name, phone, role, is_verified) VALUES
+('admin@kilnenterprise.com', 'Admin User', '+1234567890', 'admin', 1),
+('john.doe@email.com', 'John Doe', '+1234567890', 'user', 1),
+('jane.smith@email.com', 'Jane Smith', '+0987654321', 'user', 1);
 
 -- Sample funeral announcement
 INSERT INTO funeral_announcements (

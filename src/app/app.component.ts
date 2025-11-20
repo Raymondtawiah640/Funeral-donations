@@ -42,6 +42,9 @@ import { ApiService, User } from './services/api.service';
                     <a routerLink="/my-announcements" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       My Announcements
                     </a>
+                    <a *ngIf="currentUser?.role === 'admin'" routerLink="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Admin Panel
+                    </a>
                     <div class="border-t border-gray-100"></div>
                     <button (click)="logout()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       Sign Out
@@ -72,10 +75,10 @@ import { ApiService, User } from './services/api.service';
         <!-- Mobile Navigation Menu -->
         <div *ngIf="showMobileMenu" class="md:hidden border-t border-gray-200">
           <div class="px-4 pt-2 pb-3 space-y-1">
-            <a routerLink="/" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Home</a>
-            <a routerLink="/announcements" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Announcements</a>
-            <a routerLink="/about" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">About</a>
-            <a routerLink="/contact" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Contact</a>
+            <a routerLink="/" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Home</a>
+            <a routerLink="/announcements" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Announcements</a>
+            <a routerLink="/about" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">About</a>
+            <a routerLink="/contact" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Contact</a>
             
             <!-- Mobile User Menu -->
             <div *ngIf="currentUser" class="border-t border-gray-200 pt-4">
@@ -91,16 +94,17 @@ import { ApiService, User } from './services/api.service';
                 </div>
               </div>
               <div class="mt-3 space-y-1">
-                <a routerLink="/create-announcement" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Create Announcement</a>
-                <a routerLink="/my-announcements" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">My Announcements</a>
-                <button (click)="logout()" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Sign Out</button>
+                <a routerLink="/create-announcement" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Create Announcement</a>
+                <a routerLink="/my-announcements" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">My Announcements</a>
+                <a *ngIf="currentUser?.role === 'admin'" routerLink="/admin" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Admin Panel</a>
+                <button (click)="logout(); closeMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Sign Out</button>
               </div>
             </div>
             
             <!-- Mobile Unauthenticated Links -->
             <div *ngIf="!currentUser" class="border-t border-gray-200 pt-4 space-y-1">
-              <a routerLink="/login" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Login</a>
-              <a routerLink="/signup" class="block px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700">Sign Up</a>
+              <a routerLink="/login" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Login</a>
+              <a routerLink="/signup" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700">Sign Up</a>
             </div>
           </div>
         </div>
@@ -157,6 +161,10 @@ export class AppComponent implements OnInit {
 
   toggleMobileMenu(): void {
     this.showMobileMenu = !this.showMobileMenu;
+  }
+
+  closeMobileMenu(): void {
+    this.showMobileMenu = false;
   }
 
   logout(): void {

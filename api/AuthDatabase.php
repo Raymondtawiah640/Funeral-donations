@@ -107,11 +107,11 @@ class AuthDatabase {
      */
     public function getUserForLogin($email) {
         try {
-            $sql = "SELECT id, full_name, is_verified FROM users WHERE email = ?";
+            $sql = "SELECT id, full_name, role, is_verified FROM users WHERE email = ?";
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindParam(1, $email);
             $stmt->execute();
-            
+
             return $stmt->fetch();
         } catch (Exception $e) {
             throw new Exception("Failed to get user for login: " . $e->getMessage());
@@ -156,11 +156,11 @@ class AuthDatabase {
      */
     public function getUserForLoginCode($email) {
         try {
-            $sql = "SELECT id, full_name, login_code, login_code_expires_at FROM users WHERE email = ? AND is_verified = 1";
+            $sql = "SELECT id, full_name, role, login_code, login_code_expires_at FROM users WHERE email = ? AND is_verified = 1";
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindParam(1, $email);
             $stmt->execute();
-            
+
             return $stmt->fetch();
         } catch (Exception $e) {
             throw new Exception("Failed to get user for login code: " . $e->getMessage());

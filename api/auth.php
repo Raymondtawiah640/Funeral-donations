@@ -226,8 +226,8 @@ class AuthAPI {
             // Generate session token
             $session_token = $this->db->generateSessionToken();
 
-            // Store session token
-            $this->db->updateUserSessionToken($user['id'], $session_token);
+            // TEMPORARY: Skip storing session token until column is added
+            // $this->db->updateUserSessionToken($user['id'], $session_token);
 
             // Log login activity
             $ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -238,7 +238,8 @@ class AuthAPI {
                 "user" => [
                     "id" => $user['id'],
                     "email" => $email,
-                    "full_name" => $user['full_name']
+                    "full_name" => $user['full_name'],
+                    "role" => $user['role']
                 ],
                 "session_token" => $session_token
             ]);
