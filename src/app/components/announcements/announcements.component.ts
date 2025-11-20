@@ -1,18 +1,36 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ApiService, FuneralAnnouncement } from '../../services/api.service';
 
 @Component({
   selector: 'app-announcements',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="min-h-screen bg-gray-50 py-12">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-8">
           <h1 class="text-3xl font-bold text-gray-900">Funeral Announcements</h1>
           <p class="mt-2 text-gray-600">Support families during their time of need</p>
+
+          <!-- Search Filter -->
+          <div class="mt-6 max-w-md mx-auto">
+            <div class="relative">
+              <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                placeholder="Search by deceased name..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
+              />
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -30,8 +48,8 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
         </div>
 
         <!-- Announcements List -->
-        <div *ngIf="!isLoading && announcements.length > 0" class="space-y-6">
-          <div *ngFor="let announcement of announcements" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+        <div *ngIf="!isLoading && filteredAnnouncements.length > 0" class="space-y-6">
+          <div *ngFor="let announcement of filteredAnnouncements" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">
               <div class="flex flex-col lg:flex-row lg:items-start">
                 <div class="flex-1 lg:mr-6">
@@ -101,6 +119,15 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
         </div>
 
         <!-- Empty State -->
+        <div *ngIf="!isLoading && filteredAnnouncements.length === 0 && announcements.length > 0" class="text-center py-12">
+          <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <h3 class="mt-4 text-lg font-medium text-gray-900">No matching announcements</h3>
+          <p class="mt-2 text-gray-500">Try adjusting your search terms.</p>
+        </div>
+
+        <!-- No Announcements State -->
         <div *ngIf="!isLoading && announcements.length === 0" class="text-center py-12">
           <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m10-4h.01M16 5h.01"></path>
@@ -117,7 +144,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
         </div>
 
         <!-- Create Button (when there are announcements) -->
-        <div *ngIf="!isLoading && announcements.length > 0" class="text-center mt-8">
+        <div *ngIf="!isLoading && filteredAnnouncements.length > 0" class="text-center mt-8">
           <a routerLink="/create-announcement" 
              class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
             Create New Announcement
@@ -129,6 +156,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
 })
 export class AnnouncementsComponent implements OnInit {
   announcements: FuneralAnnouncement[] = [];
+  searchTerm = '';
   isLoading = true;
   error = '';
 
@@ -136,6 +164,15 @@ export class AnnouncementsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAnnouncements();
+  }
+
+  get filteredAnnouncements(): FuneralAnnouncement[] {
+    if (!this.searchTerm) {
+      return this.announcements;
+    }
+    return this.announcements.filter(announcement =>
+      announcement.deceased_name.toLowerCase().includes(this.searchTerm.toLowerCase())
+    );
   }
 
   loadAnnouncements(): void {

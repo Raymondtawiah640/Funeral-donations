@@ -42,7 +42,7 @@ import { ApiService, User } from './services/api.service';
                     <a routerLink="/my-announcements" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       My Announcements
                     </a>
-                    <a *ngIf="currentUser?.role === 'admin'" routerLink="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <a routerLink="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       Admin Panel
                     </a>
                     <div class="border-t border-gray-100"></div>
@@ -96,7 +96,7 @@ import { ApiService, User } from './services/api.service';
               <div class="mt-3 space-y-1">
                 <a routerLink="/create-announcement" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Create Announcement</a>
                 <a routerLink="/my-announcements" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">My Announcements</a>
-                <a *ngIf="currentUser?.role === 'admin'" routerLink="/admin" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Admin Panel</a>
+                <a routerLink="/admin" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Admin Panel</a>
                 <button (click)="logout(); closeMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Sign Out</button>
               </div>
             </div>
