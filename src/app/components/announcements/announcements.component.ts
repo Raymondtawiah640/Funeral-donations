@@ -33,8 +33,8 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
         <div *ngIf="!isLoading && announcements.length > 0" class="space-y-6">
           <div *ngFor="let announcement of announcements" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div class="p-6">
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
+              <div class="flex flex-col lg:flex-row lg:items-start">
+                <div class="flex-1 lg:mr-6">
                   <div class="flex items-center mb-2">
                     <h2 class="text-xl font-semibold text-gray-900">{{ announcement.deceased_name }}</h2>
                     <span class="ml-3 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
@@ -90,10 +90,10 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                 </div>
                 
                 <!-- Thumbnail Image -->
-                <div *ngIf="getThumbnailImage(announcement)" class="ml-6 flex-shrink-0">
-                  <img [src]="getThumbnailImage(announcement)" 
+                <div *ngIf="getThumbnailImage(announcement)" class="mt-4 lg:mt-0 lg:ml-6 flex-shrink-0 mx-auto lg:mx-0">
+                  <img [src]="getThumbnailImage(announcement)"
                        [alt]="announcement.deceased_name"
-                       class="h-24 w-24 object-cover rounded-lg shadow-md" />
+                       class="h-24 w-24 lg:h-32 lg:w-32 object-contain rounded-lg shadow-md" />
                 </div>
               </div>
             </div>

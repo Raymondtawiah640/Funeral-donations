@@ -98,11 +98,11 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
               <div class="space-y-4">
                 <div *ngFor="let file of getFilesByPurpose('deceased_photo')" class="group">
                   <div class="relative">
-                    <img 
-                      [src]="getFileUrl(file)" 
+                    <img
+                      [src]="getFileUrl(file)"
                       [alt]="file.original_name"
-                      class="w-full h-48 object-cover rounded-lg shadow-md group-hover:shadow-lg transition-shadow cursor-pointer"
-                      (click)="openImageModal(file)"
+                      class="w-full h-48 object-contain rounded-lg shadow-md group-hover:shadow-lg transition-shadow cursor-pointer"
+                      (click)="$event.stopPropagation(); openImageModal(file)"
                     />
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg"></div>
                   </div>
@@ -121,11 +121,11 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
               <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                 <!-- Image Preview -->
                 <div *ngIf="file.file_type === 'image'" class="relative">
-                  <img 
-                    [src]="getFileUrl(file)" 
+                  <img
+                    [src]="getFileUrl(file)"
                     [alt]="file.original_name"
-                    class="w-full h-40 object-cover cursor-pointer"
-                    (click)="openImageModal(file)"
+                    class="w-full h-40 object-contain cursor-pointer"
+                    (click)="$event.stopPropagation(); openImageModal(file)"
                   />
                 </div>
                 
@@ -224,7 +224,7 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
           
           <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
           
-          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full" (click)="$event.stopPropagation()">
             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div class="sm:flex sm:items-start">
                 <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
@@ -243,13 +243,13 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
               </div>
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <a 
-                [href]="getFileUrl(selectedImage)" 
-                download
+              <button
+                type="button"
+                (click)="downloadImage(selectedImage)"
                 class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Download
-              </a>
+              </button>
               <button 
                 type="button" 
                 (click)="closeImageModal()"
@@ -342,5 +342,15 @@ export class AnnouncementDetailComponent implements OnInit {
 
   closeImageModal(): void {
     this.selectedImage = null;
+  }
+
+  downloadImage(file: AnnouncementFile): void {
+    const link = document.createElement('a');
+    link.href = this.getFileUrl(file);
+    link.download = file.original_name;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }

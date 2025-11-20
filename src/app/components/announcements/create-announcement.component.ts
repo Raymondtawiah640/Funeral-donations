@@ -570,7 +570,7 @@ export class CreateAnnouncementComponent implements OnInit {
             this.successMessage = 'Announcement created successfully!';
           }
           
-          // Wait 30 seconds before navigating to allow files to be processed
+          // Wait 2 seconds before navigating to allow files to be processed
           setTimeout(() => {
             this.router.navigate(['/announcements', announcementId]);
           }, 2000);
