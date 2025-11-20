@@ -263,16 +263,36 @@ export class DonateComponent implements OnInit {
       return;
     }
 
+    if (!this.announcementId) {
+      this.showError('Announcement ID is missing.');
+      return;
+    }
+
     this.isSubmitting = true;
     this.showSuccessMessage = false;
     this.showErrorMessage = false;
 
-    setTimeout(() => {
-      this.isSubmitting = false;
-      this.showSuccessMessage = true;
-      this.resetForm();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 1000);
+    this.apiService.sendDonationNotification(
+      this.announcementId,
+      this.donorInfo.firstName,
+      this.donorInfo.email,
+      this.donorInfo.phone
+    ).subscribe({
+      next: (response) => {
+        this.isSubmitting = false;
+        if (response.success) {
+          this.showSuccessMessage = true;
+          this.resetForm();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          this.showError(response.error || 'Failed to send notification.');
+        }
+      },
+      error: (error) => {
+        this.isSubmitting = false;
+        this.showError(this.apiService.getErrorMessage(error));
+      }
+    });
   }
 
   private showError(message: string) {

@@ -214,6 +214,17 @@ export class ApiService {
     );
   }
 
+  sendDonationNotification(announcementId: number, donorName: string, donorEmail: string, message: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/donations.php?action=notify`, {
+      announcement_id: announcementId,
+      donor_name: donorName,
+      donor_email: donorEmail,
+      message: message
+    }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
   // File upload methods
   uploadFile(announcementId: number, file: File, uploadPurpose: string): Observable<ApiResponse<any>> {
     const formData = new FormData();
@@ -336,3 +347,4 @@ export class ApiService {
     return throwError(() => new Error(errorMessage));
   }
 }
+

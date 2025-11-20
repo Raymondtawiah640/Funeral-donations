@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once 'db_connect.php';
+require_once 'GmailSMTPMailer.php';
 
 class DonationAPI {
     private $pdo;
@@ -172,6 +173,75 @@ class DonationAPI {
         }
     }
     
+    // Send notification to announcement creator
+    public function sendNotification() {
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        // Validate required fields
+        if (!$input || !isset($input['announcement_id']) || !isset($input['donor_name']) || !isset($input['donor_email']) ||
+            !isset($input['message'])) {
+            return $this->errorResponse("Required fields: announcement_id, donor_name, donor_email, message");
+        }
+
+        $announcement_id = $input['announcement_id'];
+        $donor_name = trim($input['donor_name']);
+        $donor_email = filter_var(trim($input['donor_email']), FILTER_VALIDATE_EMAIL);
+        $message = trim($input['message']);
+
+        if (!$announcement_id || !$donor_name || !$donor_email || !$message) {
+            return $this->errorResponse("All required fields must be provided with valid values");
+        }
+
+        try {
+            // Get announcement details and creator email
+            $sql = "
+                SELECT
+                    fa.deceased_name,
+                    u.email as creator_email,
+                    u.full_name as creator_name
+                FROM funeral_announcements fa
+                JOIN users u ON fa.creator_user_id = u.id
+                WHERE fa.id = ?
+            ";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bind_param("i", $announcement_id);
+            $stmt->execute();
+            $announcement = $stmt->fetch();
+
+            if (!$announcement) {
+                return $this->errorResponse("Announcement not found");
+            }
+
+            // Send email notification
+            $mailer = new GmailSMTPMailer();
+            $subject = "New Donation Notification for " . $announcement['deceased_name'];
+
+            $emailMessage = "Dear " . $announcement['creator_name'] . ",\n\n";
+            $emailMessage .= "You have received a new donation notification for the funeral announcement of " . $announcement['deceased_name'] . ".\n\n";
+            $emailMessage .= "Donor Details:\n";
+            $emailMessage .= "Name: " . $donor_name . "\n";
+            $emailMessage .= "Email: " . $donor_email . "\n";
+            $emailMessage .= "Message: " . $message . "\n\n";
+            $emailMessage .= "Please check your announcement dashboard for more details.\n\n";
+            $emailMessage .= "Best regards,\n";
+            $emailMessage .= "Legacy Donation Team";
+
+            $emailSent = $mailer->sendEmail($announcement['creator_email'], $subject, $emailMessage);
+
+            if ($emailSent) {
+                return $this->successResponse([
+                    "message" => "Notification sent successfully to the announcement creator"
+                ]);
+            } else {
+                return $this->errorResponse("Failed to send notification email");
+            }
+
+        } catch (PDOException $e) {
+            return $this->errorResponse("Failed to send notification: " . $e->getMessage());
+        }
+    }
+
     // Get donation statistics
     public function getDonationStats($announcement_id) {
         try {
@@ -339,7 +409,11 @@ $action = $_GET['action'] ?? '';
 
 switch ($method) {
     case 'POST':
-        echo $donation_api->createDonation();
+        if ($action === 'notify') {
+            echo $donation_api->sendNotification();
+        } else {
+            echo $donation_api->createDonation();
+        }
         break;
     case 'GET':
         if ($action === 'stats' && isset($_GET['announcement_id'])) {
