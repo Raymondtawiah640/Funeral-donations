@@ -22,6 +22,7 @@ import { ApiService, User } from './services/api.service';
               <div class="ml-10 flex items-baseline space-x-4">
                 <a routerLink="/" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
                 <a routerLink="/announcements" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Announcements</a>
+                <a *ngIf="currentUser" routerLink="/my-announcements" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">My Announcements</a>
                 <a routerLink="/about" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">About</a>
                 <a routerLink="/contact" routerLinkActive="text-blue-600" class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Contact</a>
                 
@@ -77,6 +78,7 @@ import { ApiService, User } from './services/api.service';
           <div class="px-4 pt-2 pb-3 space-y-1">
             <a routerLink="/" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Home</a>
             <a routerLink="/announcements" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Announcements</a>
+            <a *ngIf="currentUser" routerLink="/my-announcements" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">My Announcements</a>
             <a routerLink="/about" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">About</a>
             <a routerLink="/contact" (click)="closeMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600">Contact</a>
             

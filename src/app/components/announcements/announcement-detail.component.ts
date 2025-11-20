@@ -154,21 +154,21 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
           </div>
         </div>
 
-        <!-- Donation Information -->
-        <div class="bg-white shadow rounded-lg p-6">
+        <!-- Donation Information - Only show if announcement is not closed -->
+        <div *ngIf="announcement.status === 'active' || announcement.status === 'grace_period'" class="bg-white shadow rounded-lg p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Donation Information</h2>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-500">Beneficiary</label>
               <p class="mt-1 text-lg text-gray-900">{{ announcement.beneficiary_name }}</p>
             </div>
-            
+
             <div *ngIf="announcement.goal_amount">
               <label class="block text-sm font-medium text-gray-500">Goal Amount</label>
               <p class="mt-1 text-lg text-gray-900">\${{ announcement.goal_amount | number:'1.2-2' }}</p>
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-500">Payment Details</label>
               <div class="mt-1 text-sm text-gray-900">
@@ -188,7 +188,7 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
               <div>
                 <label class="block text-sm font-medium text-gray-500">Announcement Period</label>
                 <p class="mt-1 text-sm text-gray-900">
-                  {{ announcement.announcement_start_date | date:'longDate' }} - 
+                  {{ announcement.announcement_start_date | date:'longDate' }} -
                   {{ announcement.announcement_end_date | date:'longDate' }}
                 </p>
               </div>
@@ -196,21 +196,26 @@ import { ApiService, FuneralAnnouncement, AnnouncementFile } from '../../service
           </div>
 
           <!-- Donate Button -->
-          <div class="mt-6" *ngIf="announcement.status === 'active' || announcement.status === 'grace_period'">
-            <a 
+          <div class="mt-6">
+            <a
               [routerLink]="['/donate', announcement.id]"
               class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
               Donate Now
             </a>
           </div>
-          
-          <div class="mt-6" *ngIf="announcement.status === 'closed' || announcement.status === 'expired'">
-            <div class="bg-gray-100 border border-gray-200 rounded-md p-4">
-              <p class="text-gray-600 text-sm">
-                This announcement is no longer accepting donations.
-              </p>
-            </div>
+        </div>
+
+        <!-- Closed Announcement Message -->
+        <div *ngIf="announcement.is_closed || announcement.status === 'closed'" class="bg-white shadow rounded-lg p-6">
+          <div class="text-center">
+            <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">Donations Closed</h3>
+            <p class="mt-2 text-sm text-gray-500">
+              This announcement is no longer accepting donations. The fundraising period has ended.
+            </p>
           </div>
         </div>
       </div>

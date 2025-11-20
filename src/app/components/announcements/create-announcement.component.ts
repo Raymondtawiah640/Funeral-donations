@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService, CreateAnnouncementRequest, FuneralAnnouncement } from '../../services/api.service';
+import { EmojiPickerComponent } from '../emoji-picker/emoji-picker.component';
 
 interface UploadedFile {
   file: File;
@@ -16,7 +17,7 @@ interface UploadedFile {
 @Component({
   selector: 'app-create-announcement',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, EmojiPickerComponent],
   template: `
     <div class="min-h-screen bg-gray-50 py-12">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,14 +116,32 @@ interface UploadedFile {
                     <label for="family_message" class="block text-sm font-medium text-gray-700">
                       Family Message *
                     </label>
-                    <textarea
-                      id="family_message"
-                      formControlName="family_message"
-                      rows="4"
-                      class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out resize-none"
-                      placeholder="Share a message about your loved one..."
-                    ></textarea>
-                    <div *ngIf="announcementForm.get('family_message')?.invalid && announcementForm.get('family_message')?.touched" 
+                    <div class="relative">
+                      <textarea
+                        id="family_message"
+                        formControlName="family_message"
+                        rows="4"
+                        class="mt-1 block w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out resize-none"
+                        placeholder="Share a message about your loved one... You can add emojis! 😊"
+                      ></textarea>
+                      <button
+                        type="button"
+                        (click)="emojiPicker.openPicker()"
+                        class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                        title="Add emoji"
+                      >
+                        😊
+                      </button>
+                    </div>
+
+                    <!-- Emoji Picker Component -->
+                    <app-emoji-picker
+                      #emojiPicker
+                      (emojiSelected)="addEmoji($event)"
+                      (pickerClosed)="onEmojiPickerClosed()"
+                    ></app-emoji-picker>
+
+                    <div *ngIf="announcementForm.get('family_message')?.invalid && announcementForm.get('family_message')?.touched"
                          class="text-red-500 text-sm mt-1">
                       Family message is required
                     </div>
@@ -589,6 +608,16 @@ export class CreateAnnouncementComponent implements OnInit {
     this.router.navigate(['/my-announcements']);
   }
 
+  addEmoji(emoji: string): void {
+    const currentMessage = this.announcementForm.get('family_message')?.value || '';
+    this.announcementForm.get('family_message')?.setValue(currentMessage + emoji);
+    // Keep picker open for multiple selections
+  }
+
+  onEmojiPickerClosed(): void {
+    // Handle picker closed event if needed
+  }
+
   private markFormGroupTouched(formGroup: FormGroup): void {
     Object.keys(formGroup.controls).forEach(key => {
       const control = formGroup.get(key);
@@ -662,19 +691,17 @@ export class CreateAnnouncementComponent implements OnInit {
       return true; // No files to upload
     }
 
-    console.log('Starting file upload for announcement:', announcementId);
-    console.log('Number of files to upload:', this.uploadedFiles.length);
+    // Starting file upload
 
     try {
       for (let i = 0; i < this.uploadedFiles.length; i++) {
         const fileData = this.uploadedFiles[i];
         fileData.uploading = true;
 
-        console.log(`Uploading file ${i + 1}:`, fileData.file.name, 'Purpose:', fileData.purpose);
+        // Uploading file
 
         try {
           const response = await this.apiService.uploadFile(announcementId, fileData.file, fileData.purpose).toPromise();
-          console.log('Upload response:', response);
           fileData.uploaded = true;
           fileData.uploading = false;
         } catch (error) {
@@ -684,7 +711,7 @@ export class CreateAnnouncementComponent implements OnInit {
           return false;
         }
       }
-      console.log('All files uploaded successfully');
+      // All files uploaded successfully
       return true;
     } catch (error) {
       console.error('File upload error:', error);

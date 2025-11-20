@@ -155,24 +155,24 @@ import { ApiService, ContactMessage } from '../../services/api.service';
                        name="name"
                        required
                        [(ngModel)]="contactFormData.name"
-                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full py-3 px-4 shadow-sm sm:text-sm border-gray-300 rounded-md">
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700">Email Address *</label>
                 <input type="email"
                        name="email"
                        required
                        [(ngModel)]="contactFormData.email"
-                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full py-3 px-4 shadow-sm sm:text-sm border-gray-300 rounded-md">
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700">Phone Number</label>
                 <input type="tel"
                        name="phone"
                        [(ngModel)]="contactFormData.phone"
-                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                       class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full py-3 px-4 shadow-sm sm:text-sm border-gray-300 rounded-md">
               </div>
               
               <div>
@@ -180,7 +180,7 @@ import { ApiService, ContactMessage } from '../../services/api.service';
                 <select name="subject"
                         required
                         [(ngModel)]="contactFormData.subject"
-                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                        class="mt-1 block w-full py-3 px-4 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                   <option value="">Select a subject</option>
                   <option value="general">General Inquiry</option>
                   <option value="donation">Donation Question</option>
@@ -189,14 +189,14 @@ import { ApiService, ContactMessage } from '../../services/api.service';
                   <option value="volunteer">Volunteer Information</option>
                 </select>
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700">Message *</label>
                 <textarea name="message"
-                          rows="4"
+                          rows="6"
                           required
                           [(ngModel)]="contactFormData.message"
-                          class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                          class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full py-3 px-4 shadow-sm sm:text-sm border-gray-300 rounded-md"
                           placeholder="Tell us how we can help you..."></textarea>
               </div>
               

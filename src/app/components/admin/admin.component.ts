@@ -23,7 +23,7 @@ interface ContactMessage {
     <div class="py-20">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Admin Password Check -->
-        <div *ngIf="!isAdmin" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mb-8">
           <h2 class="text-2xl font-bold text-gray-900 mb-6">Admin Access</h2>
           <p class="text-gray-600 mb-4">Enter admin password to access the dashboard</p>
           <div class="space-y-4">
@@ -31,7 +31,7 @@ interface ContactMessage {
               <label for="adminPassword" class="block text-sm font-medium text-gray-700">Admin Password</label>
               <input
                 id="adminPassword"
-                type="password"
+                type="text"
                 [(ngModel)]="adminPassword"
                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter admin password"
@@ -40,9 +40,10 @@ interface ContactMessage {
             <div *ngIf="passwordError" class="text-red-600 text-sm">{{ passwordError }}</div>
             <button
               (click)="checkAdminPassword()"
-              class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              [disabled]="isAdmin"
+              class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Access Admin Panel
+              {{ isAdmin ? 'Access Granted' : 'Access Admin Panel' }}
             </button>
           </div>
         </div>
@@ -219,7 +220,6 @@ export class AdminComponent implements OnInit {
     this.errorMessage = '';
 
     // Try to fetch from API first
-    console.log('Attempting to fetch from API...');
     fetch('https://kilnenterprise.com/Donations/contact.php', {
       method: 'GET',
       headers: {
@@ -227,25 +227,20 @@ export class AdminComponent implements OnInit {
       }
     })
     .then(response => {
-      console.log('API response status:', response.status);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.json();
     })
     .then(data => {
-      console.log('API response data:', data);
       this.isLoading = false;
       if (data.success && data.data) {
-        console.log('Loading real data:', data.data.length, 'messages');
         this.messages = data.data;
       } else {
-        console.log('API returned success=false or no data');
         this.errorMessage = data.error || 'Failed to load messages';
       }
     })
     .catch(error => {
-      console.log('API fetch failed, loading demo data:', error.message);
       // Load demo data if API is not available
       this.loadDemoData();
     });
@@ -316,7 +311,6 @@ export class AdminComponent implements OnInit {
     })
     .catch(error => {
       // API not available, update locally for demo
-      console.log('API not available, updating locally:', error.message);
       message.status = newStatus;
     });
   }
