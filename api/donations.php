@@ -235,14 +235,15 @@ class DonationAPI {
                 $emailMessage .= "Best regards,\n";
                 $emailMessage .= "Legacy Donation Team";
 
-                $emailSent = $mailer->sendEmail($announcement['creator_email'], $subject, $emailMessage);
+                $emailResult = $mailer->sendEmail($announcement['creator_email'], $subject, $emailMessage);
 
-                if ($emailSent) {
+                if ($emailResult['success']) {
                     return $this->successResponse([
                         "message" => "Notification sent successfully to the announcement creator"
                     ]);
                 } else {
-                    return $this->errorResponse("Failed to send notification email");
+                    $errorMsg = $emailResult['error'] ?? "Unknown email error";
+                    return $this->errorResponse("Failed to send notification email: $errorMsg");
                 }
             } catch (Exception $e) {
                 return $this->errorResponse("Failed to send notification: " . $e->getMessage());
@@ -337,18 +338,19 @@ class DonationAPI {
                 $emailMessage .= "Legacy Donation Team";
 
                 error_log("Email message: $emailMessage");
-                $emailSent = $mailer->sendEmail($data['user_email'], $subject, $emailMessage);
-                error_log("Email sent result: " . ($emailSent ? 'true' : 'false'));
+                $emailResult = $mailer->sendEmail($data['user_email'], $subject, $emailMessage);
+                error_log("Email sent result: " . json_encode($emailResult));
 
-                if ($emailSent) {
+                if ($emailResult['success']) {
                     // Log the activity
                     $this->logDonationActivity(0, $announcement_id, 'beneficiary_data_sent');
                     return $this->successResponse([
                         "message" => "Beneficiary information sent to your email successfully"
                     ]);
                 } else {
-                    error_log("Failed to send email");
-                    return $this->errorResponse("Failed to send beneficiary information email");
+                    $errorMsg = $emailResult['error'] ?? "Unknown email error";
+                    error_log("Failed to send email: $errorMsg");
+                    return $this->errorResponse("Failed to send beneficiary information email: $errorMsg");
                 }
             } catch (Exception $e) {
                 error_log("Exception sending email: " . $e->getMessage());
