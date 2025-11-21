@@ -23,19 +23,56 @@ interface ContactMessage {
     <div class="py-20">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Admin Password Check -->
-        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mb-8">
+        <div *ngIf="!isAdmin" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mb-8">
           <h2 class="text-2xl font-bold text-gray-900 mb-6">Admin Access</h2>
           <p class="text-gray-600 mb-4">Enter admin password to access the dashboard</p>
           <div class="space-y-4">
             <div>
               <label for="adminPassword" class="block text-sm font-medium text-gray-700">Admin Password</label>
-              <input
-                id="adminPassword"
-                type="text"
-                [(ngModel)]="adminPassword"
-                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter admin password"
-              />
+              <div class="relative mt-1">
+                <input
+                  id="adminPassword"
+                  [type]="showPassword ? 'text' : 'password'"
+                  [(ngModel)]="adminPassword"
+                  class="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter admin password"
+                />
+                <button
+                  type="button"
+                  (click)="togglePasswordVisibility()"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  [title]="showPassword ? 'Hide password' : 'Show password'"
+                >
+                  <svg
+                    class="h-5 w-5 text-gray-400 hover:text-gray-600"
+                    [class.line-through]="showPassword"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                    <path
+                      *ngIf="showPassword"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4.928 4.928l14.142 14.142"
+                      class="text-red-500"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div *ngIf="passwordError" class="text-red-600 text-sm">{{ passwordError }}</div>
             <button
@@ -202,6 +239,7 @@ export class AdminComponent implements OnInit {
   isAdmin = false;
   adminPassword = '';
   passwordError = '';
+  showPassword = false;
 
   constructor(private apiService: ApiService, private router: Router) {}
 
@@ -323,6 +361,16 @@ export class AdminComponent implements OnInit {
     } else {
       this.passwordError = 'Invalid admin password';
     }
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  clearPassword(): void {
+    this.adminPassword = '';
+    this.showPassword = false;
+    this.passwordError = '';
   }
 
   formatDate(dateString: string): string {
