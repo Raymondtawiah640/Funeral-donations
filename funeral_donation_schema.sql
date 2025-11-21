@@ -74,6 +74,20 @@ CREATE TABLE donations (
     FOREIGN KEY (announcement_id) REFERENCES funeral_announcements(id) ON DELETE CASCADE
 );
 
+-- Reactions table for likes and loves
+CREATE TABLE reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL,
+    user_id INTEGER,
+    user_session VARCHAR(255),
+    user_name VARCHAR(255) NOT NULL,
+    reaction_type VARCHAR(10) NOT NULL CHECK (reaction_type IN ('like', 'love')),
+    is_read BOOLEAN DEFAULT 0,
+    reacted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (announcement_id) REFERENCES funeral_announcements(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Verification codes tracking
 CREATE TABLE verification_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

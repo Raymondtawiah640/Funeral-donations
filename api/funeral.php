@@ -58,12 +58,15 @@ class FuneralAPI {
             $stmt->execute();
             $announcements = $stmt->fetchAll();
             
-            // Get files for each announcement
+            // Get files and reactions for each announcement
             foreach ($announcements as &$announcement) {
                 $files_sql = "SELECT * FROM announcement_files WHERE announcement_id = ? ORDER BY upload_purpose";
                 $files_stmt = $this->pdo->prepare($files_sql);
                 $files_stmt->execute([$announcement['id']]);
                 $announcement['files'] = $files_stmt->fetchAll();
+
+                // Add reaction data
+                $announcement['reactions'] = $this->getAnnouncementReactions($announcement['id']);
             }
             
             return $this->successResponse($announcements);
@@ -338,19 +341,19 @@ class FuneralAPI {
         if (!$session_token) {
             return $this->errorResponse("Authentication required");
         }
-        
+
         $user_id = $this->getUserIdFromToken($session_token);
         if (!$user_id) {
             return $this->errorResponse("Invalid authentication token");
         }
-        
+
         try {
             $sql = "
-                SELECT 
+                SELECT
                     fa.*,
                     COUNT(d.id) as donation_count,
                     SUM(CASE WHEN d.status = 'completed' THEN d.amount ELSE 0 END) as total_raised,
-                    CASE 
+                    CASE
                         WHEN fa.is_closed = 1 THEN 'closed'
                         WHEN CURRENT_DATE > DATE_ADD(fa.announcement_end_date, INTERVAL 5 DAY) THEN 'expired'
                         WHEN CURRENT_DATE <= fa.announcement_end_date THEN 'active'
@@ -362,15 +365,263 @@ class FuneralAPI {
                 GROUP BY fa.id
                 ORDER BY fa.created_at DESC
             ";
-            
+
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$user_id]);
             $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
+            // Add reaction data for each announcement
+            foreach ($announcements as &$announcement) {
+                $announcement['reactions'] = $this->getAnnouncementReactions($announcement['id']);
+                $announcement['notifications'] = $this->getReactionNotificationsForUser($announcement['id'], $user_id);
+            }
+
             return $this->successResponse($announcements);
-            
+
         } catch (PDOException $e) {
             return $this->errorResponse("Failed to fetch your announcements: " . $e->getMessage());
+        }
+    }
+
+    // Add reaction to announcement
+    public function addReaction() {
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($input['announcement_id']) || !isset($input['reaction_type'])) {
+            return $this->errorResponse("Announcement ID and reaction type are required");
+        }
+
+        $announcement_id = $input['announcement_id'];
+        $reaction_type = $input['reaction_type'];
+
+        if (!in_array($reaction_type, ['like', 'love'])) {
+            return $this->errorResponse("Invalid reaction type. Must be 'like' or 'love'");
+        }
+
+        // Check if announcement exists
+        if (!$this->getAnnouncementById($announcement_id)) {
+            return $this->errorResponse("Announcement not found");
+        }
+
+        $session_token = $this->getAuthToken();
+        $user_id = null;
+        $user_name = 'Anonymous';
+
+        if ($session_token) {
+            $user_id = $this->getUserIdFromToken($session_token);
+            if ($user_id) {
+                // Get user name for logged-in users
+                $user_sql = "SELECT full_name FROM users WHERE id = ?";
+                $user_stmt = $this->pdo->prepare($user_sql);
+                $user_stmt->execute([$user_id]);
+                $user_result = $user_stmt->fetch(PDO::FETCH_ASSOC);
+                $user_name = $user_result ? $user_result['full_name'] : 'Anonymous';
+            }
+        }
+
+        try {
+            // Check if user already reacted
+            $check_sql = "SELECT id, reaction_type FROM reactions WHERE announcement_id = ? AND user_id <=> ? AND user_session = ?";
+            $check_stmt = $this->pdo->prepare($check_sql);
+            $check_stmt->execute([$announcement_id, $user_id, $session_token ?: '']);
+            $existing_reaction = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing_reaction) {
+                if ($existing_reaction['reaction_type'] === $reaction_type) {
+                    // Same reaction - remove it
+                    return $this->removeReaction($announcement_id, $user_id, $session_token);
+                } else {
+                    // Different reaction - update it
+                    $update_sql = "UPDATE reactions SET reaction_type = ?, reacted_at = CURRENT_TIMESTAMP WHERE id = ?";
+                    $update_stmt = $this->pdo->prepare($update_sql);
+                    $update_stmt->execute([$reaction_type, $existing_reaction['id']]);
+                }
+            } else {
+                // New reaction
+                $insert_sql = "INSERT INTO reactions (announcement_id, user_id, user_session, user_name, reaction_type) VALUES (?, ?, ?, ?, ?)";
+                $insert_stmt = $this->pdo->prepare($insert_sql);
+                $insert_stmt->execute([$announcement_id, $user_id, $session_token ?: '', $user_name, $reaction_type]);
+            }
+
+            // Log activity if user is logged in
+            if ($user_id) {
+                $this->logActivity($user_id, 'add_reaction', "Added $reaction_type reaction to announcement ID: $announcement_id");
+            }
+
+            return $this->successResponse([
+                "message" => "Reaction added successfully",
+                "reactions" => $this->getAnnouncementReactions($announcement_id)
+            ]);
+
+        } catch (PDOException $e) {
+            return $this->errorResponse("Failed to add reaction: " . $e->getMessage());
+        }
+    }
+
+    // Remove reaction from announcement
+    public function removeReaction($announcement_id = null, $user_id = null, $session_token = null) {
+        if ($announcement_id === null) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $announcement_id = $input['announcement_id'] ?? null;
+        }
+
+        if (!$announcement_id) {
+            return $this->errorResponse("Announcement ID is required");
+        }
+
+        if ($user_id === null || $session_token === null) {
+            $session_token = $this->getAuthToken();
+            $user_id = $session_token ? $this->getUserIdFromToken($session_token) : null;
+        }
+
+        try {
+            $delete_sql = "DELETE FROM reactions WHERE announcement_id = ? AND user_id <=> ? AND user_session = ?";
+            $delete_stmt = $this->pdo->prepare($delete_sql);
+            $delete_stmt->execute([$announcement_id, $user_id, $session_token ?: '']);
+
+            // Log activity if user is logged in
+            if ($user_id) {
+                $this->logActivity($user_id, 'remove_reaction', "Removed reaction from announcement ID: $announcement_id");
+            }
+
+            return $this->successResponse([
+                "message" => "Reaction removed successfully",
+                "reactions" => $this->getAnnouncementReactions($announcement_id)
+            ]);
+
+        } catch (PDOException $e) {
+            return $this->errorResponse("Failed to remove reaction: " . $e->getMessage());
+        }
+    }
+
+    // Get reaction notifications for user
+    public function getReactionNotifications() {
+        $session_token = $this->getAuthToken();
+        if (!$session_token) {
+            return $this->errorResponse("Authentication required");
+        }
+
+        $user_id = $this->getUserIdFromToken($session_token);
+        if (!$user_id) {
+            return $this->errorResponse("Invalid authentication token");
+        }
+
+        try {
+            // Get user's announcements
+            $announcements_sql = "SELECT id FROM funeral_announcements WHERE creator_user_id = ?";
+            $announcements_stmt = $this->pdo->prepare($announcements_sql);
+            $announcements_stmt->execute([$user_id]);
+            $user_announcements = $announcements_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $notifications = [];
+
+            foreach ($user_announcements as $announcement_id) {
+                $notifications[$announcement_id] = $this->getReactionNotificationsForUser($announcement_id, $user_id);
+            }
+
+            return $this->successResponse($notifications);
+
+        } catch (PDOException $e) {
+            return $this->errorResponse("Failed to get notifications: " . $e->getMessage());
+        }
+    }
+
+    // Mark notifications as read
+    public function markNotificationsRead() {
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($input['announcement_id'])) {
+            return $this->errorResponse("Announcement ID is required");
+        }
+
+        $announcement_id = $input['announcement_id'];
+
+        $session_token = $this->getAuthToken();
+        if (!$session_token) {
+            return $this->errorResponse("Authentication required");
+        }
+
+        $user_id = $this->getUserIdFromToken($session_token);
+        if (!$user_id) {
+            return $this->errorResponse("Invalid authentication token");
+        }
+
+        // Check if user owns this announcement
+        if (!$this->isAnnouncementOwner($announcement_id, $user_id)) {
+            return $this->errorResponse("You can only mark notifications for your own announcements");
+        }
+
+        try {
+            $update_sql = "UPDATE reactions SET is_read = 1 WHERE announcement_id = ? AND is_read = 0";
+            $update_stmt = $this->pdo->prepare($update_sql);
+            $update_stmt->execute([$announcement_id]);
+
+            return $this->successResponse(["message" => "Notifications marked as read"]);
+
+        } catch (PDOException $e) {
+            return $this->errorResponse("Failed to mark notifications as read: " . $e->getMessage());
+        }
+    }
+
+    // Helper method to get reactions for an announcement
+    private function getAnnouncementReactions($announcement_id) {
+        try {
+            $sql = "
+                SELECT
+                    COUNT(CASE WHEN reaction_type = 'like' THEN 1 END) as likes,
+                    COUNT(CASE WHEN reaction_type = 'love' THEN 1 END) as loves
+                FROM reactions
+                WHERE announcement_id = ?
+            ";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$announcement_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'likes' => (int)$result['likes'],
+                'loves' => (int)$result['loves']
+            ];
+        } catch (PDOException $e) {
+            return ['likes' => 0, 'loves' => 0];
+        }
+    }
+
+    // Helper method to get reaction notifications for a specific announcement and user
+    private function getReactionNotificationsForUser($announcement_id, $user_id) {
+        try {
+            $sql = "
+                SELECT
+                    COUNT(*) as new_likes,
+                    GROUP_CONCAT(
+                        CONCAT(
+                            '{\"name\":\"', REPLACE(user_name, '\"', '\\\"'), '\",\"reaction_type\":\"', reaction_type, '\",\"reacted_at\":\"', reacted_at, '\"}'
+                        )
+                        ORDER BY reacted_at DESC
+                        SEPARATOR '|||'
+                    ) as recent_likers_json
+                FROM reactions
+                WHERE announcement_id = ? AND user_id != ? AND is_read = 0
+                ORDER BY reacted_at DESC
+                LIMIT 10
+            ";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$announcement_id, $user_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $recent_likers = [];
+            if ($result['recent_likers_json']) {
+                $likers_parts = explode('|||', $result['recent_likers_json']);
+                foreach ($likers_parts as $liker_json) {
+                    $recent_likers[] = json_decode($liker_json, true);
+                }
+            }
+
+            return [
+                'new_likes' => (int)$result['new_likes'],
+                'recent_likers' => $recent_likers
+            ];
+        } catch (PDOException $e) {
+            return ['new_likes' => 0, 'recent_likers' => []];
         }
     }
     
@@ -470,6 +721,8 @@ switch ($method) {
     case 'GET':
         if ($action === 'user-announcements') {
             echo $funeral->getUserAnnouncements();
+        } elseif ($action === 'reaction-notifications') {
+            echo $funeral->getReactionNotifications();
         } elseif (isset($_GET['id'])) {
             echo $funeral->getAnnouncement($_GET['id']);
         } else {
@@ -477,7 +730,13 @@ switch ($method) {
         }
         break;
     case 'POST':
-        echo $funeral->createAnnouncement();
+        if ($action === 'react') {
+            echo $funeral->addReaction();
+        } elseif ($action === 'mark-notifications-read') {
+            echo $funeral->markNotificationsRead();
+        } else {
+            echo $funeral->createAnnouncement();
+        }
         break;
     case 'PUT':
         if (isset($_GET['id'])) {
@@ -487,7 +746,9 @@ switch ($method) {
         }
         break;
     case 'DELETE':
-        if (isset($_GET['action']) && $_GET['action'] === 'close' && isset($_GET['id'])) {
+        if ($action === 'react') {
+            echo $funeral->removeReaction();
+        } elseif (isset($_GET['action']) && $_GET['action'] === 'close' && isset($_GET['id'])) {
             echo $funeral->closeAnnouncement($_GET['id']);
         } else {
             echo json_encode(["success" => false, "error" => "Invalid action or missing ID"]);
