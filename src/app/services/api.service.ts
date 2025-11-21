@@ -81,6 +81,19 @@ export interface FuneralAnnouncement {
   total_raised?: number;
   files?: AnnouncementFile[];
   recent_donations?: Donation[];
+  reactions?: {
+    likes: number;
+    loves: number;
+    user_reaction?: 'like' | 'love' | null;
+  };
+  notifications?: {
+    new_likes: number;
+    recent_likers: Array<{
+      name: string;
+      reaction_type: 'like' | 'love';
+      reacted_at: string;
+    }>;
+  };
 }
 
 export interface AnnouncementFile {
@@ -194,6 +207,37 @@ export class ApiService {
     return this.http.get<ApiResponse<FuneralAnnouncement[]>>(`${this.baseUrl}/funeral.php?action=user-announcements`, { headers }).pipe(
       catchError(this.handleError)
     );
+  }
+
+  // Reaction methods
+  addReaction(announcementId: number, reactionType: 'like' | 'love'): Observable<ApiResponse<any>> {
+    const headers = this.getAuthHeaders();
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/funeral.php?action=react`, {
+      announcement_id: announcementId,
+      reaction_type: reactionType
+    }, { headers }).pipe(catchError(this.handleError));
+  }
+
+  removeReaction(announcementId: number): Observable<ApiResponse<any>> {
+    const headers = this.getAuthHeaders();
+    return this.http.delete<ApiResponse<any>>(`${this.baseUrl}/funeral.php?action=react&announcement_id=${announcementId}`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Notification methods
+  getReactionNotifications(): Observable<ApiResponse<{ [announcementId: number]: any }>> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<ApiResponse<{ [announcementId: number]: any }>>(`${this.baseUrl}/funeral.php?action=reaction-notifications`, { headers }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  markNotificationsRead(announcementId: number): Observable<ApiResponse<any>> {
+    const headers = this.getAuthHeaders();
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/funeral.php?action=mark-notifications-read`, {
+      announcement_id: announcementId
+    }, { headers }).pipe(catchError(this.handleError));
   }
 
   // Donation methods

@@ -11,19 +11,19 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
     <div class="min-h-screen bg-gray-50 py-12">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="mb-8">
-          <div class="flex justify-between items-center">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 class="text-3xl font-bold text-gray-900">My Announcements</h1>
+              <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">My Announcements</h1>
               <p class="mt-2 text-gray-600">Manage your funeral announcements</p>
             </div>
             <a routerLink="/create-announcement"
-               class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+               class="inline-flex items-center px-4 sm:px-6 py-3 border border-transparent text-sm sm:text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 self-start sm:self-auto">
               Create New Announcement
             </a>
           </div>
 
           <!-- View Toggle -->
-          <div class="mt-6 flex items-center justify-between">
+          <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-center space-x-4">
               <span class="text-sm font-medium text-gray-700">View:</span>
               <div class="flex rounded-md shadow-sm">
@@ -33,7 +33,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                   [class.text-white]="viewMode === 'list'"
                   [class.bg-gray-200]="viewMode !== 'list'"
                   [class.text-gray-700]="viewMode !== 'list'"
-                  class="px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300 hover:bg-blue-700 hover:text-white transition-colors"
+                  class="px-3 sm:px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300 hover:bg-blue-700 hover:text-white transition-colors"
                 >
                   List View
                 </button>
@@ -43,7 +43,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                   [class.text-white]="viewMode === 'timeline'"
                   [class.bg-gray-200]="viewMode !== 'timeline'"
                   [class.text-gray-700]="viewMode !== 'timeline'"
-                  class="px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b border-gray-300 hover:bg-blue-700 hover:text-white transition-colors"
+                  class="px-3 sm:px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b border-gray-300 hover:bg-blue-700 hover:text-white transition-colors"
                 >
                   Timeline View
                 </button>
@@ -59,7 +59,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                 [class.text-white]="selectedFilter === filter.key"
                 [class.bg-gray-200]="selectedFilter !== filter.key"
                 [class.text-gray-700]="selectedFilter !== filter.key"
-                class="px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 hover:text-white transition-colors"
+                class="px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 hover:text-white transition-colors"
               >
                 {{ filter.label }} ({{ getFilteredCount(filter.key) }})
               </button>
@@ -97,9 +97,64 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                           }">
                       {{ announcement.status | titlecase }}
                     </span>
+                    <!-- Notification Badge -->
+                    <span *ngIf="getNewLikesCount(announcement) > 0"
+                          class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse cursor-pointer"
+                          (click)="markNotificationsAsRead(announcement.id)">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                      </svg>
+                      {{ getNewLikesCount(announcement) }} new like{{ getNewLikesCount(announcement) > 1 ? 's' : '' }}
+                    </span>
                   </div>
 
                   <p class="text-gray-600 mb-4">{{ getMessagePreview(announcement) }}</p>
+
+                  <!-- Reactions -->
+                  <div class="flex items-center space-x-4 mb-4">
+                    <button
+                      (click)="toggleReaction(announcement, 'like')"
+                      [class.text-blue-600]="announcement.reactions?.user_reaction === 'like'"
+                      [class.text-gray-400]="announcement.reactions?.user_reaction !== 'like'"
+                      class="flex items-center space-x-1 hover:text-blue-600 transition-colors text-sm"
+                    >
+                      <span class="text-lg">👍</span>
+                      <span>{{ announcement.reactions?.likes || 0 }}</span>
+                    </button>
+
+                    <button
+                      (click)="toggleReaction(announcement, 'love')"
+                      [class.text-red-600]="announcement.reactions?.user_reaction === 'love'"
+                      [class.text-gray-400]="announcement.reactions?.user_reaction !== 'love'"
+                      class="flex items-center space-x-1 hover:text-red-600 transition-colors text-sm"
+                    >
+                      <span class="text-lg">❤️</span>
+                      <span>{{ announcement.reactions?.loves || 0 }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Recent Likers -->
+                  <div *ngIf="getRecentLikers(announcement).length > 0"
+                       class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex items-center mb-2">
+                      <svg class="w-4 h-4 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                      </svg>
+                      <span class="text-sm font-medium text-blue-800">Recent Reactions</span>
+                    </div>
+                    <div class="space-y-1">
+                      <div *ngFor="let liker of getRecentLikers(announcement).slice(0, 3)"
+                           class="flex items-center text-xs text-blue-700">
+                        <span class="mr-2">{{ liker.reaction_type === 'like' ? '👍' : '❤️' }}</span>
+                        <span class="font-medium">{{ liker.name }}</span>
+                        <span class="ml-auto text-blue-500">{{ getTimeAgo(liker.reacted_at) }}</span>
+                      </div>
+                    </div>
+                    <button *ngIf="getRecentLikers(announcement).length > 3"
+                            class="mt-2 text-xs text-blue-600 hover:text-blue-800">
+                      +{{ getRecentLikers(announcement).length - 3 }} more
+                    </button>
+                  </div>
 
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div *ngIf="announcement.deceased_death_date">
@@ -118,7 +173,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                     </div>
                   </div>
 
-                  <div class="mt-4 flex items-center justify-between">
+                  <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div class="flex items-center space-x-4">
                       <div *ngIf="announcement.goal_amount">
                         <span class="text-sm text-gray-500">Goal:</span>
@@ -128,14 +183,14 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
 
                     <div class="flex items-center space-x-3">
                       <a [routerLink]="['/announcements', announcement.id]"
-                         class="text-blue-600 hover:text-blue-800 font-medium">
+                         class="text-blue-600 hover:text-blue-800 font-medium text-sm">
                         View
                       </a>
 
                       <button
                         *ngIf="announcement.status === 'active' && !announcement.is_closed"
                         (click)="closeAnnouncement(announcement.id)"
-                        class="text-red-600 hover:text-red-800 font-medium"
+                        class="text-red-600 hover:text-red-800 font-medium text-sm"
                         [disabled]="isClosing">
                         Close
                       </button>
@@ -157,34 +212,34 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
         <!-- Timeline View -->
         <div *ngIf="viewMode === 'timeline' && !isLoading && announcements.length > 0" class="relative">
           <!-- Timeline line -->
-          <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+          <div class="absolute left-4 sm:left-6 lg:left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
 
-          <div class="space-y-8">
+          <div class="space-y-6 sm:space-y-8">
             <div *ngFor="let group of groupedAnnouncements" class="relative">
               <!-- Timeline dot and date header -->
               <div class="flex items-center mb-4">
-                <div class="flex-shrink-0 w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm z-10">
+                <div class="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm z-10">
                   {{ getGroupIcon(group.period) }}
                 </div>
-                <div class="ml-4">
-                  <h3 class="text-lg font-semibold text-gray-900">{{ group.period }}</h3>
-                  <p class="text-sm text-gray-500">{{ group.count }} announcement{{ group.count > 1 ? 's' : '' }}</p>
+                <div class="ml-2 sm:ml-3 lg:ml-4">
+                  <h3 class="text-base sm:text-lg font-semibold text-gray-900">{{ group.period }}</h3>
+                  <p class="text-xs sm:text-sm text-gray-500">{{ group.count }} announcement{{ group.count > 1 ? 's' : '' }}</p>
                 </div>
               </div>
 
               <!-- Announcements in this group -->
-              <div class="ml-20 space-y-4">
+              <div class="ml-8 sm:ml-12 lg:ml-20 space-y-4">
                 <div *ngFor="let announcement of group.announcements" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                   <div class="p-4">
-                    <div class="flex items-start space-x-4">
+                    <div class="flex items-start space-x-2 sm:space-x-3 lg:space-x-4">
                       <!-- Timeline connector -->
-                      <div class="flex-shrink-0 w-4 h-4 bg-blue-600 rounded-full mt-2"></div>
+                      <div class="flex-shrink-0 w-3 h-3 sm:w-4 sm:h-4 bg-blue-600 rounded-full mt-2"></div>
 
-                      <div class="flex-1">
-                        <div class="flex items-center justify-between mb-2">
-                          <div class="flex items-center space-x-3">
-                            <h4 class="text-lg font-semibold text-gray-900">{{ announcement.deceased_name }}</h4>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                      <div class="flex-1 min-w-0">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                          <div class="flex items-center space-x-2 sm:space-x-3">
+                            <h4 class="text-base sm:text-lg font-semibold text-gray-900 truncate">{{ announcement.deceased_name }}</h4>
+                            <span class="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-medium"
                                   [ngClass]="{
                                     'bg-green-100 text-green-800': announcement.status === 'active',
                                     'bg-yellow-100 text-yellow-800': announcement.status === 'grace_period',
@@ -192,14 +247,64 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                                   }">
                               {{ announcement.status | titlecase }}
                             </span>
+                            <!-- Notification Badge -->
+                            <span *ngIf="getNewLikesCount(announcement) > 0"
+                                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse cursor-pointer"
+                                  (click)="markNotificationsAsRead(announcement.id)">
+                              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                              </svg>
+                              {{ getNewLikesCount(announcement) }}
+                            </span>
                           </div>
-                          <span class="text-sm text-gray-500">{{ getTimeAgo(announcement.announcement_start_date) }}</span>
+                          <span class="text-xs sm:text-sm text-gray-500">{{ getTimeAgo(announcement.announcement_start_date) }}</span>
                         </div>
 
-                        <p class="text-gray-600 mb-3">{{ getMessagePreview(announcement) }}</p>
+                        <p class="text-gray-600 mb-3 text-sm sm:text-base">{{ getMessagePreview(announcement) }}</p>
 
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center space-x-4 text-sm">
+                        <!-- Reactions -->
+                        <div class="flex items-center space-x-4 mb-3">
+                          <button
+                            (click)="toggleReaction(announcement, 'like')"
+                            [class.text-blue-600]="announcement.reactions?.user_reaction === 'like'"
+                            [class.text-gray-400]="announcement.reactions?.user_reaction !== 'like'"
+                            class="flex items-center space-x-1 hover:text-blue-600 transition-colors text-xs sm:text-sm"
+                          >
+                            <span class="text-base sm:text-lg">👍</span>
+                            <span>{{ announcement.reactions?.likes || 0 }}</span>
+                          </button>
+
+                          <button
+                            (click)="toggleReaction(announcement, 'love')"
+                            [class.text-red-600]="announcement.reactions?.user_reaction === 'love'"
+                            [class.text-gray-400]="announcement.reactions?.user_reaction !== 'love'"
+                            class="flex items-center space-x-1 hover:text-red-600 transition-colors text-xs sm:text-sm"
+                          >
+                            <span class="text-base sm:text-lg">❤️</span>
+                            <span>{{ announcement.reactions?.loves || 0 }}</span>
+                          </button>
+                        </div>
+
+                        <!-- Recent Likers (Timeline) -->
+                        <div *ngIf="getRecentLikers(announcement).length > 0"
+                             class="mb-3 p-2 bg-blue-50 rounded border border-blue-200">
+                          <div class="flex items-center mb-1">
+                            <svg class="w-3 h-3 text-blue-600 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                            </svg>
+                            <span class="text-xs font-medium text-blue-800">Recent Reactions</span>
+                          </div>
+                          <div class="space-y-1">
+                            <div *ngFor="let liker of getRecentLikers(announcement).slice(0, 2)"
+                                 class="flex items-center text-xs text-blue-700">
+                              <span class="mr-1">{{ liker.reaction_type === 'like' ? '👍' : '❤️' }}</span>
+                              <span class="font-medium truncate">{{ liker.name }}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm">
                             <div *ngIf="announcement.deceased_death_date">
                               <span class="font-medium text-gray-500">Passed:</span>
                               <span class="ml-1 text-gray-900">{{ announcement.deceased_death_date | date:'longDate' }}</span>
@@ -216,16 +321,16 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                             </div>
                           </div>
 
-                          <div class="flex items-center space-x-3">
+                          <div class="flex items-center space-x-2 sm:space-x-3">
                             <a [routerLink]="['/announcements', announcement.id]"
-                               class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                               class="text-blue-600 hover:text-blue-800 font-medium text-xs sm:text-sm">
                               View Details
                             </a>
 
                             <button
                               *ngIf="announcement.status === 'active' && !announcement.is_closed"
                               (click)="closeAnnouncement(announcement.id)"
-                              class="text-red-600 hover:text-red-800 font-medium text-sm"
+                              class="text-red-600 hover:text-red-800 font-medium text-xs sm:text-sm"
                               [disabled]="isClosing">
                               Close
                             </button>
@@ -237,7 +342,7 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                       <div *ngIf="getThumbnailImage(announcement)" class="flex-shrink-0">
                         <img [src]="getThumbnailImage(announcement)"
                              [alt]="announcement.deceased_name"
-                             class="h-16 w-16 object-contain rounded-lg shadow-sm" />
+                             class="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 object-contain rounded-lg shadow-sm" />
                       </div>
                     </div>
                   </div>
@@ -287,6 +392,118 @@ export class MyAnnouncementsComponent implements OnInit {
 
   constructor(private apiService: ApiService) {}
 
+  // Reaction methods
+  toggleReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love'): void {
+    if (!announcement.reactions) {
+      announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+    }
+
+    const currentReaction = announcement.reactions.user_reaction;
+
+    if (currentReaction === reactionType) {
+      // Remove reaction
+      this.removeReaction(announcement);
+    } else {
+      // Add or change reaction
+      this.addReaction(announcement, reactionType);
+    }
+  }
+
+  private addReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love'): void {
+    if (this.apiService.isLoggedIn()) {
+      // API call for logged-in users
+      this.apiService.addReaction(announcement.id, reactionType).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.updateLocalReaction(announcement, reactionType);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to add reaction:', error);
+        }
+      });
+    } else {
+      // Local storage for non-logged-in users
+      this.updateLocalReaction(announcement, reactionType);
+      this.saveReactionsToLocalStorage();
+    }
+  }
+
+  private removeReaction(announcement: FuneralAnnouncement): void {
+    if (this.apiService.isLoggedIn()) {
+      // API call for logged-in users
+      this.apiService.removeReaction(announcement.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.updateLocalReaction(announcement, null);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to remove reaction:', error);
+        }
+      });
+    } else {
+      // Local storage for non-logged-in users
+      this.updateLocalReaction(announcement, null);
+      this.saveReactionsToLocalStorage();
+    }
+  }
+
+  private updateLocalReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love' | null): void {
+    if (!announcement.reactions) {
+      announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+    }
+
+    const previousReaction = announcement.reactions.user_reaction;
+
+    // Remove previous reaction count
+    if (previousReaction === 'like') {
+      announcement.reactions.likes = Math.max(0, announcement.reactions.likes - 1);
+    } else if (previousReaction === 'love') {
+      announcement.reactions.loves = Math.max(0, announcement.reactions.loves - 1);
+    }
+
+    // Add new reaction count
+    if (reactionType === 'like') {
+      announcement.reactions.likes += 1;
+    } else if (reactionType === 'love') {
+      announcement.reactions.loves += 1;
+    }
+
+    announcement.reactions.user_reaction = reactionType;
+  }
+
+  private saveReactionsToLocalStorage(): void {
+    const reactions: { [announcementId: number]: 'like' | 'love' | null } = {};
+
+    this.announcements.forEach(announcement => {
+      if (announcement.reactions?.user_reaction !== undefined) {
+        reactions[announcement.id] = announcement.reactions.user_reaction;
+      }
+    });
+
+    localStorage.setItem('announcementReactions', JSON.stringify(reactions));
+  }
+
+  private loadReactionsFromLocalStorage(): void {
+    const stored = localStorage.getItem('announcementReactions');
+    if (stored) {
+      try {
+        const reactions = JSON.parse(stored);
+        this.announcements.forEach(announcement => {
+          if (reactions[announcement.id] !== undefined) {
+            if (!announcement.reactions) {
+              announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+            }
+            announcement.reactions.user_reaction = reactions[announcement.id];
+          }
+        });
+      } catch (e) {
+        console.error('Failed to load reactions from localStorage:', e);
+      }
+    }
+  }
+
   ngOnInit(): void {
     this.loadAnnouncements();
   }
@@ -300,6 +517,14 @@ export class MyAnnouncementsComponent implements OnInit {
         this.isLoading = false;
         if (response.success) {
           this.announcements = response.data;
+          // Load local reactions for non-logged-in users
+          if (!this.apiService.isLoggedIn()) {
+            this.loadReactionsFromLocalStorage();
+          }
+          // Load notifications for logged-in users
+          if (this.apiService.isLoggedIn()) {
+            this.loadNotifications();
+          }
         } else {
           this.error = response.error || 'Failed to load your announcements';
         }
@@ -309,6 +534,41 @@ export class MyAnnouncementsComponent implements OnInit {
         this.error = this.apiService.getErrorMessage(error);
       }
     });
+  }
+
+  loadNotifications(): void {
+    this.apiService.getReactionNotifications().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          // Update announcements with notification data
+          this.announcements.forEach(announcement => {
+            if (response.data[announcement.id]) {
+              announcement.notifications = response.data[announcement.id];
+            }
+          });
+        }
+      },
+      error: (error) => {
+        console.error('Failed to load notifications:', error);
+      }
+    });
+  }
+
+  markNotificationsAsRead(announcementId: number): void {
+    const announcement = this.announcements.find(a => a.id === announcementId);
+    if (announcement?.notifications) {
+      this.apiService.markNotificationsRead(announcementId).subscribe({
+        next: (response) => {
+          if (response.success) {
+            // Clear notifications for this announcement
+            announcement.notifications = { new_likes: 0, recent_likers: [] };
+          }
+        },
+        error: (error) => {
+          console.error('Failed to mark notifications as read:', error);
+        }
+      });
+    }
   }
 
   closeAnnouncement(id: number): void {
@@ -512,5 +772,13 @@ export class MyAnnouncementsComponent implements OnInit {
       const years = Math.floor(diffDays / 365);
       return `${years} year${years > 1 ? 's' : ''} ago`;
     }
+  }
+
+  getNewLikesCount(announcement: FuneralAnnouncement): number {
+    return announcement.notifications?.new_likes || 0;
+  }
+
+  getRecentLikers(announcement: FuneralAnnouncement): any[] {
+    return announcement.notifications?.recent_likers || [];
   }
 }

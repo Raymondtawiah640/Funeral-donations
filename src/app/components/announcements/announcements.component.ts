@@ -66,7 +66,30 @@ import { ApiService, FuneralAnnouncement } from '../../services/api.service';
                   </div>
                   
                   <p class="text-gray-600 mb-4 line-clamp-3">{{ announcement.family_message }}</p>
-                  
+
+                  <!-- Reactions -->
+                  <div class="flex items-center space-x-4 mb-4">
+                    <button
+                      (click)="toggleReaction(announcement, 'like')"
+                      [class.text-blue-600]="announcement.reactions?.user_reaction === 'like'"
+                      [class.text-gray-400]="announcement.reactions?.user_reaction !== 'like'"
+                      class="flex items-center space-x-1 hover:text-blue-600 transition-colors text-sm"
+                    >
+                      <span class="text-lg">👍</span>
+                      <span>{{ announcement.reactions?.likes || 0 }}</span>
+                    </button>
+
+                    <button
+                      (click)="toggleReaction(announcement, 'love')"
+                      [class.text-red-600]="announcement.reactions?.user_reaction === 'love'"
+                      [class.text-gray-400]="announcement.reactions?.user_reaction !== 'love'"
+                      class="flex items-center space-x-1 hover:text-red-600 transition-colors text-sm"
+                    >
+                      <span class="text-lg">❤️</span>
+                      <span>{{ announcement.reactions?.loves || 0 }}</span>
+                    </button>
+                  </div>
+
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     <div *ngIf="announcement.deceased_death_date">
                       <span class="font-medium text-gray-500">Passed:</span>
@@ -184,6 +207,10 @@ export class AnnouncementsComponent implements OnInit {
         this.isLoading = false;
         if (response.success) {
           this.announcements = response.data;
+          // Load local reactions for non-logged-in users
+          if (!this.apiService.isLoggedIn()) {
+            this.loadReactionsFromLocalStorage();
+          }
         } else {
           this.error = response.error || 'Failed to load announcements';
         }
@@ -193,6 +220,118 @@ export class AnnouncementsComponent implements OnInit {
         this.error = this.apiService.getErrorMessage(error);
       }
     });
+  }
+
+  // Reaction methods
+  toggleReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love'): void {
+    if (!announcement.reactions) {
+      announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+    }
+
+    const currentReaction = announcement.reactions.user_reaction;
+
+    if (currentReaction === reactionType) {
+      // Remove reaction
+      this.removeReaction(announcement);
+    } else {
+      // Add or change reaction
+      this.addReaction(announcement, reactionType);
+    }
+  }
+
+  private addReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love'): void {
+    if (this.apiService.isLoggedIn()) {
+      // API call for logged-in users
+      this.apiService.addReaction(announcement.id, reactionType).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.updateLocalReaction(announcement, reactionType);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to add reaction:', error);
+        }
+      });
+    } else {
+      // Local storage for non-logged-in users
+      this.updateLocalReaction(announcement, reactionType);
+      this.saveReactionsToLocalStorage();
+    }
+  }
+
+  private removeReaction(announcement: FuneralAnnouncement): void {
+    if (this.apiService.isLoggedIn()) {
+      // API call for logged-in users
+      this.apiService.removeReaction(announcement.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.updateLocalReaction(announcement, null);
+          }
+        },
+        error: (error) => {
+          console.error('Failed to remove reaction:', error);
+        }
+      });
+    } else {
+      // Local storage for non-logged-in users
+      this.updateLocalReaction(announcement, null);
+      this.saveReactionsToLocalStorage();
+    }
+  }
+
+  private updateLocalReaction(announcement: FuneralAnnouncement, reactionType: 'like' | 'love' | null): void {
+    if (!announcement.reactions) {
+      announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+    }
+
+    const previousReaction = announcement.reactions.user_reaction;
+
+    // Remove previous reaction count
+    if (previousReaction === 'like') {
+      announcement.reactions.likes = Math.max(0, announcement.reactions.likes - 1);
+    } else if (previousReaction === 'love') {
+      announcement.reactions.loves = Math.max(0, announcement.reactions.loves - 1);
+    }
+
+    // Add new reaction count
+    if (reactionType === 'like') {
+      announcement.reactions.likes += 1;
+    } else if (reactionType === 'love') {
+      announcement.reactions.loves += 1;
+    }
+
+    announcement.reactions.user_reaction = reactionType;
+  }
+
+  private saveReactionsToLocalStorage(): void {
+    const reactions: { [announcementId: number]: 'like' | 'love' | null } = {};
+
+    this.announcements.forEach(announcement => {
+      if (announcement.reactions?.user_reaction !== undefined) {
+        reactions[announcement.id] = announcement.reactions.user_reaction;
+      }
+    });
+
+    localStorage.setItem('publicAnnouncementReactions', JSON.stringify(reactions));
+  }
+
+  private loadReactionsFromLocalStorage(): void {
+    const stored = localStorage.getItem('publicAnnouncementReactions');
+    if (stored) {
+      try {
+        const reactions = JSON.parse(stored);
+        this.announcements.forEach(announcement => {
+          if (reactions[announcement.id] !== undefined) {
+            if (!announcement.reactions) {
+              announcement.reactions = { likes: 0, loves: 0, user_reaction: null };
+            }
+            announcement.reactions.user_reaction = reactions[announcement.id];
+          }
+        });
+      } catch (e) {
+        console.error('Failed to load reactions from localStorage:', e);
+      }
+    }
   }
 
   getThumbnailImage(announcement: FuneralAnnouncement): string | null {
