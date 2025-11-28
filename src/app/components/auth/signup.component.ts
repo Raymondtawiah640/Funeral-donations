@@ -2,12 +2,12 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ApiService } from '../../services/api.service';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   template: `
     <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div class="sm:mx-auto sm:w-full sm:max-w-md">
@@ -226,7 +226,7 @@ export class SignupComponent {
   private countdownTimer?: any;
 
   constructor(
-    private apiService: ApiService,
+    private http: HttpClient,
     private router: Router
   ) {}
 
@@ -242,20 +242,15 @@ export class SignupComponent {
       return;
     }
 
-    this.apiService.signup(
-      this.signupForm.email,
-      this.signupForm.fullName,
-      this.signupForm.phone || undefined
-    ).subscribe({
-      next: (response) => {
+    this.http.post('https://kilnenterprise.com/Donations/signup.php?action=signup', {
+      email: this.signupForm.email,
+      full_name: this.signupForm.fullName,
+      phone: this.signupForm.phone || undefined
+    }).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
         if (response.success) {
-          // Show verification code if available in response
-          if (response.data?.verification_code) {
-            this.successMessage = `Verification code: ${response.data.verification_code} (Check your email or use this code)`;
-          } else {
-            this.successMessage = 'Verification code sent to your email';
-          }
+          this.successMessage = 'Verification code sent to your email';
           this.currentStep = 'verify';
           this.startCountdown();
         } else {
@@ -264,7 +259,7 @@ export class SignupComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.errorMessage = this.getErrorMessage(error);
       }
     });
   }
@@ -279,8 +274,11 @@ export class SignupComponent {
     this.successMessage = '';
     this.isLoading = true;
 
-    this.apiService.verifyEmail(this.signupForm.email, this.verificationCode).subscribe({
-      next: (response) => {
+    this.http.post('https://kilnenterprise.com/Donations/signup.php?action=verify', {
+      email: this.signupForm.email,
+      verification_code: this.verificationCode
+    }).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
         if (response.success) {
           this.currentStep = 'success';
@@ -291,7 +289,7 @@ export class SignupComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.errorMessage = this.getErrorMessage(error);
       }
     });
   }
@@ -300,8 +298,10 @@ export class SignupComponent {
     if (this.countdown > 0) return;
 
     this.isLoading = true;
-    this.apiService.resendVerificationCode(this.signupForm.email).subscribe({
-      next: (response) => {
+    this.http.post('https://kilnenterprise.com/Donations/signup.php?action=resend-verification', {
+      email: this.signupForm.email
+    }).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
         if (response.success) {
           this.successMessage = 'New verification code sent';
@@ -312,7 +312,7 @@ export class SignupComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.errorMessage = this.getErrorMessage(error);
       }
     });
   }
@@ -341,5 +341,18 @@ export class SignupComponent {
 
   ngOnDestroy(): void {
     this.clearCountdown();
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error.error && error.error.error) {
+      return error.error.error;
+    }
+    if (error.error && error.error.message) {
+      return error.error.message;
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

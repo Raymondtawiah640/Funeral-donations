@@ -2,12 +2,13 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ApiService, User } from '../../services/api.service';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { ApiService } from '../../services/api.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   template: `
     <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div class="sm:mx-auto sm:w-full sm:max-w-md">
@@ -170,6 +171,7 @@ export class LoginComponent {
   private countdownTimer?: any;
 
   constructor(
+    private http: HttpClient,
     private apiService: ApiService,
     private router: Router
   ) {}
@@ -185,16 +187,13 @@ export class LoginComponent {
       return;
     }
 
-    this.apiService.requestLoginCode(this.loginForm.email).subscribe({
-      next: (response) => {
+    this.http.post('https://kilnenterprise.com/Donations/login.php?action=request-login', {
+      email: this.loginForm.email
+    }).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
         if (response.success) {
-          // Show login code if available in response
-          if (response.data?.login_code) {
-            this.successMessage = `Login code: ${response.data.login_code} (Check your email or use this code)`;
-          } else {
-            this.successMessage = 'Login code sent to your email';
-          }
+          this.successMessage = 'Login code sent to your email';
           this.currentStep = 'code';
           this.startCountdown();
         } else {
@@ -203,7 +202,7 @@ export class LoginComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.errorMessage = this.getErrorMessage(error);
       }
     });
   }
@@ -218,11 +217,14 @@ export class LoginComponent {
     this.successMessage = '';
     this.isLoading = true;
 
-    this.apiService.loginWithCode(this.loginForm.email, this.loginCode).subscribe({
-      next: (response) => {
+    this.http.post('https://kilnenterprise.com/Donations/login.php?action=login', {
+      email: this.loginForm.email,
+      login_code: this.loginCode
+    }).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
         if (response.success) {
-          // Set user and token
+          // Set user and token using ApiService
           this.apiService.setCurrentUser(response.data.user);
           this.apiService.setAuthToken(response.data.session_token);
           
@@ -237,7 +239,7 @@ export class LoginComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.errorMessage = this.getErrorMessage(error);
       }
     });
   }
@@ -266,5 +268,18 @@ export class LoginComponent {
 
   ngOnDestroy(): void {
     this.clearCountdown();
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error.error && error.error.error) {
+      return error.error.error;
+    }
+    if (error.error && error.error.message) {
+      return error.error.message;
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

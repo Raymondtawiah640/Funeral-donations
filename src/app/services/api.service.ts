@@ -129,7 +129,7 @@ export interface CreateAnnouncementRequest {
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = 'https://kilnenterprise.com/Donations';
+  private baseUrl = 'https://kilnenterprise.com/Donations/';
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
@@ -137,36 +137,7 @@ export class ApiService {
     this.loadUserFromStorage();
   }
 
-  // Authentication methods
-  signup(email: string, fullName: string, phone?: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/auth.php?action=signup`, {
-      email, full_name: fullName, phone
-    }).pipe(catchError(this.handleError));
-  }
-
-  verifyEmail(email: string, verificationCode: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/auth.php?action=verify`, {
-      email, verification_code: verificationCode
-    }).pipe(catchError(this.handleError));
-  }
-
-  requestLoginCode(email: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/auth.php?action=request-login`, {
-      email
-    }).pipe(catchError(this.handleError));
-  }
-
-  loginWithCode(email: string, loginCode: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/auth.php?action=login`, {
-      email, login_code: loginCode
-    }).pipe(catchError(this.handleError));
-  }
-
-  resendVerificationCode(email: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/auth.php?action=resend-verification`, {
-      email
-    }).pipe(catchError(this.handleError));
-  }
+  // Authentication methods moved to direct component calls in login and signup components
 
   // Funeral announcements methods
   getAnnouncements(): Observable<ApiResponse<FuneralAnnouncement[]>> {

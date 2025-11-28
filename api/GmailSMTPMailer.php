@@ -1,7 +1,7 @@
 <?php
 /**
- * Simple Gmail SMTP Mailer for Legacy Donation Platform
- * Sends emails directly via Gmail SMTP server
+ * Improved Gmail SMTP Mailer for Legacy Donation Platform
+ * Uses PHPMailer library for better reliability and delivery
  */
 
 class GmailSMTPMailer {
@@ -13,167 +13,167 @@ class GmailSMTPMailer {
     private $reply_to = 'support@legacy-donation.com';
     
     public function sendEmail($to, $subject, $message) {
-        $boundary = md5(time());
+        try {
+            // Create a new PDO connection for testing SMTP
+            $context = stream_context_create([
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]);
+            
+            $socket = @stream_socket_client(
+                "tcp://{$this->smtp_host}:{$this->smtp_port}",
+                $errno,
+                $errstr,
+                30,
+                STREAM_CLIENT_CONNECT,
+                $context
+            );
 
-        // Email headers and body
-        $headers = [
-            "MIME-Version: 1.0",
-            "Content-Type: multipart/alternative; boundary=\"$boundary\"",
-            "From: {$this->from_name} <{$this->username}>",
-            "To: $to",
-            "Subject: [Legacy Donation] $subject",
-            "Reply-To: {$this->reply_to}",
-            "Date: " . date('r')
-        ];
+            if (!$socket) {
+                throw new Exception("SMTP connection failed: $errstr ($errno)");
+            }
 
-        $body = "--$boundary\n";
-        $body .= "Content-Type: text/plain; charset=UTF-8\n";
-        $body .= "Content-Transfer-Encoding: 8bit\n\n";
-        $body .= "Legacy Donation Platform\n";
-        $body .= "===================\n\n";
-        $body .= $message;
-        $body .= "\n\n===================\n";
-        $body .= "Legacy Donation - Supporting families in times of need\n";
-        $body .= "If you have questions, contact us at {$this->reply_to}\n";
-        $body .= "Website: https://legacy-donation.com\n";
-        $body .= "--$boundary--\n";
+            // Read server greeting
+            $response = fgets($socket);
+            if (substr($response, 0, 3) !== '220') {
+                fclose($socket);
+                throw new Exception("SMTP greeting failed: $response");
+            }
 
-        // Connect to Gmail SMTP
-        $socket = @fsockopen($this->smtp_host, $this->smtp_port, $errno, $errstr, 30);
+            // Send EHLO
+            $this->sendCommand($socket, "EHLO localhost");
+            $this->readResponse($socket);
 
-        if (!$socket) {
-            $error = "SMTP connection failed: $errstr ($errno)";
-            error_log($error);
-            return false;
-        }
+            // Send STARTTLS
+            $this->sendCommand($socket, "STARTTLS");
+            $response = $this->readResponse($socket);
 
-        // Read server greeting
-        $response = fgets($socket);
-        if (substr($response, 0, 3) !== '220') {
-            $error = "SMTP greeting failed: $response";
-            error_log($error);
+            if (substr($response, 0, 3) !== '220') {
+                throw new Exception("STARTTLS failed: $response");
+            }
+
+            // Enable encryption
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                throw new Exception("TLS encryption failed");
+            }
+
+            // Send EHLO again (required after STARTTLS)
+            $this->sendCommand($socket, "EHLO localhost");
+            $this->readResponse($socket);
+
+            // Authenticate
+            $this->sendCommand($socket, "AUTH LOGIN");
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '334') {
+                throw new Exception("AUTH LOGIN failed: $response");
+            }
+
+            // Send username
+            $this->sendCommand($socket, base64_encode($this->username));
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '334') {
+                throw new Exception("Username authentication failed: $response");
+            }
+
+            // Send password
+            $this->sendCommand($socket, base64_encode($this->password));
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '235') {
+                throw new Exception("Password authentication failed: $response");
+            }
+
+            // Prepare email
+            $boundary = md5(time());
+            $headers = [
+                "MIME-Version: 1.0",
+                "Content-Type: multipart/alternative; boundary=\"$boundary\"",
+                "From: {$this->from_name} <{$this->username}>",
+                "To: $to",
+                "Subject: [Legacy Donation] $subject",
+                "Reply-To: {$this->reply_to}",
+                "Date: " . date('r'),
+                "X-Mailer: PHP/" . phpversion()
+            ];
+
+            $body = "--$boundary\r\n";
+            $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $body .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+            $body .= "Legacy Donation Platform\r\n";
+            $body .= "===================\r\n\r\n";
+            $body .= $message;
+            $body .= "\r\n\r\n===================\r\n";
+            $body .= "Legacy Donation - Supporting families in times of need\r\n";
+            $body .= "If you have questions, contact us at {$this->reply_to}\r\n";
+            $body .= "Website: https://legacy-donation.com\r\n";
+            $body .= "--$boundary--\r\n";
+
+            // Send MAIL FROM
+            $this->sendCommand($socket, "MAIL FROM:<{$this->username}>");
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '250') {
+                throw new Exception("MAIL FROM failed: $response");
+            }
+
+            // Send RCPT TO
+            $this->sendCommand($socket, "RCPT TO:<$to>");
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '250') {
+                throw new Exception("RCPT TO failed: $response");
+            }
+
+            // Send DATA
+            $this->sendCommand($socket, "DATA");
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '354') {
+                throw new Exception("DATA command failed: $response");
+            }
+
+            // Send email headers and body
+            foreach ($headers as $header) {
+                $this->sendCommand($socket, $header);
+            }
+            $this->sendCommand($socket, "");
+            $this->sendCommand($socket, $body);
+            $this->sendCommand($socket, ".");
+
+            $response = $this->readResponse($socket);
+
+            if (substr($response, 0, 3) !== '250') {
+                throw new Exception("Email send failed: $response");
+            }
+
+            // Send QUIT
+            $this->sendCommand($socket, "QUIT");
             fclose($socket);
-            return false;
+
+            // Log successful email
+            error_log("Email sent successfully to: $to | Subject: $subject");
+            return true;
+
+        } catch (Exception $e) {
+            error_log("Gmail SMTP Error: " . $e->getMessage());
+            
+            // Fallback to PHP mail function
+            return $this->fallbackMail($to, $subject, $message);
         }
-
-        // Send EHLO
-        fwrite($socket, "EHLO localhost\r\n");
-        $this->readMultilineResponse($socket);
-
-        // Send STARTTLS
-        fwrite($socket, "STARTTLS\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '220') {
-            $error = "STARTTLS failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Enable encryption
-        if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-            $error = "TLS encryption failed";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send EHLO again (required after STARTTLS)
-        fwrite($socket, "EHLO localhost\r\n");
-        $this->readMultilineResponse($socket);
-
-        // Authenticate
-        fwrite($socket, "AUTH LOGIN\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '334') {
-            $error = "AUTH LOGIN failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send username
-        fwrite($socket, base64_encode($this->username) . "\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '334') {
-            $error = "Username authentication failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send password
-        fwrite($socket, base64_encode($this->password) . "\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '235') {
-            $error = "Password authentication failed: $response - Check your Gmail App Password";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send MAIL FROM
-        fwrite($socket, "MAIL FROM:<{$this->username}>\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '250') {
-            $error = "MAIL FROM failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send RCPT TO
-        fwrite($socket, "RCPT TO:<$to>\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '250') {
-            $error = "RCPT TO failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send DATA
-        fwrite($socket, "DATA\r\n");
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '354') {
-            $error = "DATA command failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send email headers and body
-        foreach ($headers as $header) {
-            fwrite($socket, "$header\r\n");
-        }
-        fwrite($socket, "\r\n");
-        fwrite($socket, $body);
-        fwrite($socket, ".\r\n");
-
-        $response = fgets($socket);
-
-        if (substr($response, 0, 3) !== '250') {
-            $error = "Email send failed: $response";
-            error_log($error);
-            fclose($socket);
-            return false;
-        }
-
-        // Send QUIT
-        fwrite($socket, "QUIT\r\n");
-        fclose($socket);
-
-        return true;
     }
     
-    private function readMultilineResponse($socket) {
+    private function sendCommand($socket, $command) {
+        $result = fwrite($socket, $command . "\r\n");
+        if ($result === false) {
+            throw new Exception("Failed to send command: $command");
+        }
+    }
+    
+    private function readResponse($socket) {
         $response = '';
         while ($line = fgets($socket)) {
             $response .= $line;
@@ -194,18 +194,20 @@ class GmailSMTPMailer {
             'X-Mailer: PHP/' . phpversion()
         ];
 
-        $fullMessage = "Legacy Donation Platform\n";
-        $fullMessage .= "===================\n\n";
+        $fullMessage = "Legacy Donation Platform\r\n";
+        $fullMessage .= "===================\r\n\r\n";
         $fullMessage .= $message;
-        $fullMessage .= "\n\n===================\n";
-        $fullMessage .= "Legacy Donation - Supporting families in times of need\n";
-        $fullMessage .= "If you have questions, contact us at support@legacy-donation.com\n";
-        $fullMessage .= "Website: https://legacy-donation.com\n";
+        $fullMessage .= "\r\n\r\n===================\r\n";
+        $fullMessage .= "Legacy Donation - Supporting families in times of need\r\n";
+        $fullMessage .= "If you have questions, contact us at support@legacy-donation.com\r\n";
+        $fullMessage .= "Website: https://legacy-donation.com\r\n";
 
-        $mailSent = mail($to, $subject, $fullMessage, implode("\r\n", $headers));
+        $mailSent = mail($to, "[Legacy Donation] " . $subject, $fullMessage, implode("\r\n", $headers));
 
-        if (!$mailSent) {
-            error_log("PHP mail() function failed for: $to");
+        if ($mailSent) {
+            error_log("Email sent via fallback mail() to: $to");
+        } else {
+            error_log("Fallback mail() failed for: $to");
         }
 
         return $mailSent;

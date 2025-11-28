@@ -1,4 +1,4 @@
-<?php
+i<?php
 /**
  * Legacy Donation Authentication API
  * Refactored with proper separation of concerns
@@ -324,25 +324,10 @@ $auth = new AuthAPI();
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
-    case 'signup':
-        echo $auth->signup();
-        break;
-    case 'verify':
-        echo $auth->verifyEmail();
-        break;
-    case 'request-login':
-        echo $auth->requestLoginCode();
-        break;
-    case 'login':
-        echo $auth->loginWithCode();
-        break;
-    case 'resend-verification':
-        echo $auth->resendVerificationCode();
-        break;
     default:
         echo json_encode([
             "success" => false,
-            "error" => "Invalid action. Available actions: signup, verify, request-login, login, resend-verification"
+            "error" => "Authentication functionality has been moved to separate files. Use /api/login.php for login operations and /api/signup.php for signup operations."
         ]);
 }
 ?>
