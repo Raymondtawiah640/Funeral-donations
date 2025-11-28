@@ -94,7 +94,7 @@ class GmailSMTPMailer {
                 "Content-Type: multipart/alternative; boundary=\"$boundary\"",
                 "From: {$this->from_name} <{$this->username}>",
                 "To: $to",
-                "Subject: [Legacy Donation] $subject",
+                "Subject: Legacy Donation - $subject",
                 "Reply-To: {$this->reply_to}",
                 "Date: " . date('r'),
                 "X-Mailer: PHP/" . phpversion()
