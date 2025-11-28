@@ -109,7 +109,7 @@ class GmailSMTPMailer {
             $body .= "\r\n\r\n===================\r\n";
             $body .= "Legacy Donation - Supporting families in times of need\r\n";
             $body .= "If you have questions, contact us at {$this->reply_to}\r\n";
-            $body .= "Website: https://legacy-donation.com\r\n";
+            $body .= "Website: https://kilnenterprise.com/Donations/contact\r\n";
             $body .= "--$boundary--\r\n";
 
             // Send MAIL FROM
